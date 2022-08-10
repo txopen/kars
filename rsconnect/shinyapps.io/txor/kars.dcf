@@ -1,0 +1,11 @@
+name: kars
+title:
+username:
+account: txor
+server: shinyapps.io
+hostUrl: https://api.shinyapps.io/v1
+appId: 6766162
+bundleId: 6188914
+url: https://txor.shinyapps.io/kars/
+when: 1660150666.92043
+lastSyncTime: 1660150666.92043
