@@ -1,6 +1,6 @@
 # server functions' file
 
-source("scripts/read_data.R")
+#source("scripts/read_data.R")
 source("scripts/compat_fxs.R")
 source("scripts/PT_fxs.R")
 source("scripts/ET_fxs.R")
@@ -12,6 +12,38 @@ library(tidyverse)
 library(openxlsx)
 library(gtsummary)
 
+library(histoc)
+
+ex.candidates.pt <- histoc::et_mmp(data = candidates,
+                                   hlaA = hlaApt,
+                                   hlaB = hlaBpt,
+                                   hlaDR = hlaDRpt,
+                                   abo.freq = ABOpt,
+                                   check.validity = F
+                                   ) |> 
+  rename(a1 = A1_freq, a2 = A2_freq,
+         b1 = B1_freq, b2 = B2_freq,
+         dr1 = DR1_freq, dr2 = DR2_freq
+         ) |>
+  select(ID,bg,A1,A2,B1,B2,DR1,DR2,age,dialysis,cPRA,a1,a2,b1,b2,dr1,dr2,abo) # ex.candidates.et
+
+ex.candidates.et <- histoc::et_mmp(data = candidates,
+                                   hlaA = hlaAet,
+                                   hlaB = hlaBet,
+                                   hlaDR = hlaDRet,
+                                   abo.freq = ABOpt,
+                                   check.validity = F
+) |> 
+  rename(a1 = A1_freq, a2 = A2_freq,
+         b1 = B1_freq, b2 = B2_freq,
+         dr1 = DR1_freq, dr2 = DR2_freq
+  ) |>
+  select(ID,bg,A1,A2,B1,B2,DR1,DR2,age,dialysis,cPRA,a1,a2,b1,b2,dr1,dr2,abo,MMP) # ex.candidates.pt
+
+#ex.candidates.uk <- histoc::candidates.uk
+
+#ex.donors.uk <- histoc::donors.uk
+
 function(input, output, session) {
   
   output$ex.cands<- renderDataTable({
@@ -21,11 +53,11 @@ function(input, output, session) {
               rownames = FALSE)
   })
   output$ex.abs<- renderDataTable({
-    datatable(ex.abs,
+    datatable(histoc::cabs, #ex.abs
               rownames = FALSE)
   })
   output$ex.donors<- renderDataTable({
-    datatable(ex.donors,
+    datatable(histoc::donors, # ex.donors
               rownames = FALSE)
   })
   
@@ -80,10 +112,10 @@ function(input, output, session) {
     
     validate(
       if(ukf() == 1){
-        need(identical(colnames(data),c(colnames(ex.donors),"DRI")), 
+        need(identical(colnames(data),c(colnames(histoc::donors),"DRI")), 
              "Donors column names are not the necessary for UK algorithm!")
       } else {
-      need(identical(colnames(data),colnames(ex.donors)), 
+      need(identical(colnames(data),colnames(histoc::donors)), 
            "Donors column names are not identical to example data!")}
     )
     
@@ -111,7 +143,7 @@ function(input, output, session) {
     
     
     validate(
-      need(identical(colnames(data),colnames(ex.abs)), 
+      need(identical(colnames(data),colnames(histoc::cabs)), 
            "HLA antibodies column names are not identical to example data!")
     )
     
@@ -144,7 +176,7 @@ function(input, output, session) {
     if (input$dataInput == 1) {candidates<-ex.candidates.pt %>% 
       select(ID, bg,A1,A2,B1,B2,DR1,DR2,age,dialysis,cPRA)} else {candidates<-datasetCands() %>% 
         select(ID, bg,A1,A2,B1,B2,DR1,DR2,age,dialysis,cPRA)}
-    if (input$dataInput == 1) {abs.d<-ex.abs} else {abs.d<-datasetAbs()}
+    if (input$dataInput == 1) {abs.d<-histoc::cabs} else {abs.d<-datasetAbs()}
     
     validate(
       need(candidates != "", "Please select a candidates data set!")
@@ -221,8 +253,8 @@ function(input, output, session) {
    
     if (input$dataInput == 1) {candidates<-ex.candidates.pt} else {candidates<-datasetCands() %>% 
       select(ID, bg,A1,A2,B1,B2,DR1,DR2,age,dialysis,cPRA)}
-    if (input$dataInput == 1) {abs.d<-ex.abs} else {abs.d<-datasetAbs()}
-    if (input$dataInput == 1) {donors<-ex.donors} else {donors<-datasetDonors()}
+    if (input$dataInput == 1) {abs.d<-histoc::cabs} else {abs.d<-datasetAbs()}
+    if (input$dataInput == 1) {donors<-histoc::donors} else {donors<-datasetDonors()}
     
     validate(
       need(candidates != "", "Please select a candidates data set!")
@@ -387,10 +419,10 @@ function(input, output, session) {
   ## for 10 first candidates selected according to unique donor 
   output$res1ET <- renderDataTable({
     
-    if (input$hlafreqs == 1) {ex.candidates<-ex.candidates.pt} else {ex.candidates<-ex.candidates.et}
+    if (input$hlafreqs == 1) {ex.candidates<-ex.candidates.et} else {ex.candidates<-ex.candidates.et}
 
     if (input$dataInput == 1) {candidates<-ex.candidates} else {candidates<-datasetCandsET()}
-    if (input$dataInput == 1) {abs.d<-ex.abs} else {abs.d<-datasetAbs()}
+    if (input$dataInput == 1) {abs.d<-histoc::cabs} else {abs.d<-datasetAbs()}
 
     validate(
       need(candidates != "", "Please select a candidates data set!")
@@ -459,11 +491,11 @@ function(input, output, session) {
       mm5 = as.numeric(input$mm5) # points for 5 HLA mm on ET points table
       mm6 = as.numeric(input$mm6) # points for 6 HLA mm on ET points table
      
-      if (input$hlafreqs == 1) {ex.candidates<-ex.candidates.pt} else {ex.candidates<-ex.candidates.et}
+      if (input$hlafreqs == 1) {ex.candidates<-ex.candidates.et} else {ex.candidates<-ex.candidates.et}
       if (input$dataInput == 1) {candidates<-ex.candidates} else {candidates<-datasetCandsET()}
       
-      if (input$dataInput == 1) {abs.d<-ex.abs} else {abs.d<-datasetAbs()}
-      if (input$dataInput == 1) {donors<-ex.donors} else {donors<-datasetDonors()}
+      if (input$dataInput == 1) {abs.d<-histoc::cabs} else {abs.d<-datasetAbs()}
+      if (input$dataInput == 1) {donors<-histoc::donors} else {donors<-datasetDonors()}
       
       validate(
         need(candidates != "", "Please select a candidates data set!")
@@ -578,7 +610,7 @@ function(input, output, session) {
     if (input$dataInput == 1) {candidates<-ex.candidates.pt %>% 
       select(ID, bg,A1,A2,B1,B2,DR1,DR2,age,dialysis,cPRA)} else {candidates<-datasetCands() %>% 
         select(ID, bg,A1,A2,B1,B2,DR1,DR2,age,dialysis,cPRA)}
-    if (input$dataInput == 1) {abs.d<-ex.abs} else {abs.d<-datasetAbs()}
+    if (input$dataInput == 1) {abs.d<-histoc::cabs} else {abs.d<-datasetAbs()}
     
     validate(
       need(candidates != "", "Please select a candidates data set!")
@@ -637,8 +669,8 @@ function(input, output, session) {
       if (input$dataInput == 1) {candidates<-ex.candidates.pt %>% 
         select(ID, bg,A1,A2,B1,B2,DR1,DR2,age,dialysis,cPRA)} else {candidates<-datasetCands() %>% 
           select(ID, bg,A1,A2,B1,B2,DR1,DR2,age,dialysis,cPRA)}
-      if (input$dataInput == 1) {abs.d<-ex.abs} else {abs.d<-datasetAbs()}
-      if (input$dataInput == 1) {donors<-ex.donors} else {donors<-datasetDonors()}
+      if (input$dataInput == 1) {abs.d<-histoc::cabs} else {abs.d<-datasetAbs()}
+      if (input$dataInput == 1) {donors<-histoc::donors} else {donors<-datasetDonors()}
       
       validate(
         need(candidates != "", "Please select a candidates data set!")
@@ -771,7 +803,7 @@ function(input, output, session) {
   
   
   ############################ UK algorithm ###################
-  
+
   ## compute DRI for one donor
   driv<-reactive({
     exp(0.023 * (input$dageUK-50) +
@@ -782,31 +814,31 @@ function(input, output, session) {
           -0.023 * (input$dgfrUK-90)/10 +
           0.015 * input$dhospUK
     )
- 
+
   })
-  
+
   output$dri<-renderText({
-   paste("DRI is:", round(driv(),2), "; the donor belong to", 
+   paste("DRI is:", round(driv(),2), "; the donor belong to",
          ifelse(driv() <= 0.79, "D1",
                 ifelse(driv() <= 1.12,"D2",
                        ifelse(driv() <= 1.5,"D3","D4"))))
     })
-  
-  
+
+
   output$res1UK <- renderDataTable({
-    
-    if (input$dataInput == 1) {candidates<-ex.candidates.uk} else {candidates<-datasetCands()%>% 
+
+    if (input$dataInput == 1) {candidates<-histoc::candidates.uk} else {candidates<-datasetCands()%>%
       select(ID, bg,A1,A2,B1,B2,DR1,DR2,age,dialysis,cPRA, Tier, MS, RRI)}
-    if (input$dataInput == 1) {abs.d<-ex.abs} else {abs.d<-datasetAbs()}
-    
+    if (input$dataInput == 1) {abs.d<-histoc::cabs} else {abs.d<-datasetAbs()}
+
     validate(
       need(candidates != "", "Please select a candidates data set!")
     )
-    
+
     validate(
       need(abs.d != "", "Please select candidates' HLA antibodies data set!")
     )
-    
+
     dt<-uk_points(DRI = ifelse(driv() <= 0.79, "D1",
                                ifelse(driv() <= 1.12,"D2",
                                       ifelse(driv() <= 1.5,"D3","D4"))), # Donor RisK Index group
@@ -825,7 +857,7 @@ function(input, output, session) {
                   D2R3 = 500,
                   D2R4 = 350,
                   D3R1 = 350,
-                  D3R2 = 500, 
+                  D3R2 = 500,
                   D3R3 = 1000,
                   D3R4 = 700,
                   D4R1 = 0,
@@ -842,7 +874,7 @@ function(input, output, session) {
                   nn = input$nUK, # matchability formula
                   o = input$oUK, # matchability formula
                   mm1 = as.numeric(input$mm1UK), # substrating points for 1 mm
-                  mm23 = as.numeric(input$mm23UK), # substrating points for 2-3 mm 
+                  mm23 = as.numeric(input$mm23UK), # substrating points for 2-3 mm
                   mm46 = as.numeric(input$mm46UK), # substrating points for 4-6 mm
                   pts = input$bloodUK, # substrating points for B blood group
                   df.abs = abs.d, # data frame with candidates' HLA antibodies
@@ -857,18 +889,18 @@ function(input, output, session) {
                                , mmHLA_B = mmB
                                , mmHLA_DR = mmDR)$prob5y
       )
-    
+
     datatable(dt, options = list(pageLength = 5, dom = 'tip'))
-    
+
   })
-  
+
   ## compute nultiple results for UK algorithm
   compute_resmUK <- reactiveVal()
-  
+
   observeEvent(input$GoUK, {
-    
+
     compute_resmUK(NULL)
-    
+
     withProgress(message = 'Calculation in progress, be patient!', {
       for(i in 1:N){
         # Long Running Task
@@ -876,42 +908,42 @@ function(input, output, session) {
         # Update progress
         incProgress(1/N)
       }
-      
-      
-      if (input$dataInput == 1) {candidates<-ex.candidates.uk %>% 
+
+
+      if (input$dataInput == 1) {candidates<-histoc::candidates.uk %>%
         select(ID, bg,A1,A2,B1,B2,DR1,DR2,age,dialysis,cPRA,
                Tier, RRI, MS)} else {candidates<-datasetCands()}
-      if (input$dataInput == 1) {abs.d<-ex.abs} else {abs.d<-datasetAbs()}
-      if (input$dataInput == 1) {donors<-ex.donors.uk %>%
+      if (input$dataInput == 1) {abs.d<-histoc::cabs} else {abs.d<-datasetAbs()}
+      if (input$dataInput == 1) {donors<-histoc::donors.uk %>%
         select(ID, bg, A1, A2, B1, B2, DR1, DR2, age, DRI)} else {donors<-datasetDonors()}
-      
-      
+
+
       validate(
         need(candidates != "", "Please select a candidates data set!")
       )
-      
+
       validate(
         need(abs.d != "", "Please select candidates' HLA antibodies data set!")
       )
-      
+
       validate(
         need(donors != "", "Please select donors' data set!")
       )
-      
+
       # add a column to candidates' file to update respective donors
       candidatesN<-candidates %>% mutate(donor = 'X')
-      
+
       # create a list with the same length of the number of donors
       res <- vector("list", length = dim(donors)[1])
-      
+
       # now the for loop
       for (i in 1:dim(donors)[1]){
         candid<-candidatesN %>% filter(donor == 'X')
-        
+
         res[[i]]<-uk_points(DRI = donors$DRI[i], # Donor RisK Index group
                             dABO = donors$bg[i], # donor's blood group
-                            dA = c(donors$A1[i],donors$A2[i]), 
-                            dB = c(donors$B1[i],donors$B2[i]), 
+                            dA = c(donors$A1[i],donors$A2[i]),
+                            dB = c(donors$B1[i],donors$B2[i]),
                             dDR = c(donors$DR1[i],donors$DR2[i]), # donor's HLA typing'
                             dage = donors$age[i], # donor's age
                             cdata = candid, # data file with candidates
@@ -924,7 +956,7 @@ function(input, output, session) {
                             D2R3 = 500,
                             D2R4 = 350,
                             D3R1 = 350,
-                            D3R2 = 500, 
+                            D3R2 = 500,
                             D3R3 = 1000,
                             D3R4 = 700,
                             D4R1 = 0,
@@ -941,22 +973,22 @@ function(input, output, session) {
                             nn = input$nUK, # matchability formula
                             o = input$oUK, # matchability formula
                             mm1 = as.numeric(input$mm1UK), # substrating points for 1 mm
-                            mm23 = as.numeric(input$mm23UK), # substrating points for 2-3 mm 
+                            mm23 = as.numeric(input$mm23UK), # substrating points for 2-3 mm
                             mm46 = as.numeric(input$mm46UK), # substrating points for 4-6 mm
                             pts = input$bloodUK, # substrating points for B blood group
                             df.abs = abs.d, # data frame with candidates' HLA antibodies
                             n = 2 # slice first n rows
-        ) %>% 
+        ) %>%
           mutate(donor = donors$ID[i])
-        
+
         candidatesN<-candidatesN %>%
           mutate(donor = case_when(ID %in% res[[i]]$ID ~ donors$ID[i],
                                    TRUE ~ donor))
-        
+
       }
-      
+
       ## bind the results in the list and compute txScore
-      dt <- do.call(rbind, res) %>% 
+      dt <- do.call(rbind, res) %>%
         mutate(txScore = txscore(ageR = age
                                  , timeD = dialysis
                                  , ageD = donor_age
@@ -966,14 +998,14 @@ function(input, output, session) {
         )
       # add to reactiveval
       compute_resmUK(dt)
-     
+
     })
   })
-  
+
   output$resmUK <- renderDataTable({
     compute_resmUK()
   })
-  
+
   # Downloadable csv of selected dataset ----
   output$downloadDataUK <- downloadHandler(
     filename = function() {
@@ -983,24 +1015,24 @@ function(input, output, session) {
       write.csv2(compute_resmUK(), file, row.names = FALSE, fileEncoding="latin1")
     }
   )
-  
+
   ## Resume dataset results from UK algorithm
   output$resumeUK <-
     render_gt({
-      
+
       validate(
         need(compute_resmUK() != "", "Results will be presented after the run!")
       )
-      
-      tabsum<-compute_resmUK() %>% 
-        select(bg, age, dialysis, cPRA, Tier, mmHLA, txScore) %>% 
+
+      tabsum<-compute_resmUK() %>%
+        select(bg, age, dialysis, cPRA, Tier, mmHLA, txScore) %>%
         rename(`Blood group` = bg,
                `receptores' age (years)` = age,
                `time on dialysis (months)` = dialysis,
                `Tier` = Tier,
                `HLA miss matchs` = mmHLA,
                TxScore = txScore)
-      
+
       tbl_summary(tabsum) %>% as_gt()
     })
   
