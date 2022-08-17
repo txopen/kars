@@ -1,11 +1,11 @@
 # server functions' file
 
 #source("scripts/read_data.R")
-source("scripts/compat_fxs.R")
-source("scripts/PT_fxs.R")
-source("scripts/ET_fxs.R")
-source("scripts/Lima_fxs.R")
-source("scripts/UK_fxs.R")
+# source("scripts/compat_fxs.R")
+# source("scripts/PT_fxs.R")
+# source("scripts/ET_fxs.R")
+# source("scripts/Lima_fxs.R")
+# source("scripts/UK_fxs.R")
 
 library(DT)
 library(tidyverse)
@@ -14,42 +14,52 @@ library(gtsummary)
 
 library(histoc)
 
-ex.candidates.pt <- histoc::et_mmp(data = candidates,
-                                   hlaA = hlaApt,
-                                   hlaB = hlaBpt,
-                                   hlaDR = hlaDRpt,
-                                   abo.freq = ABOpt,
-                                   check.validity = F
-                                   ) |> 
-  rename(a1 = A1_freq, a2 = A2_freq,
-         b1 = B1_freq, b2 = B2_freq,
-         dr1 = DR1_freq, dr2 = DR2_freq
-         ) |>
-  select(ID,bg,A1,A2,B1,B2,DR1,DR2,age,dialysis,cPRA,a1,a2,b1,b2,dr1,dr2,abo) # ex.candidates.et
+#############################################################
+# function for multiple donors
+res_mult <- function(df.donors = donors,
+                     df.candidates = candidates,
+                     df.abs = abs.d,
+                     algorithm = pts,
+                     n = 0,
+                     check.validity = FALSE,
+                     ...){
+  
+all_pairs <- donor_recipient_pairs(df.donors = df.donors,
+                                   df.candidates = df.candidates,
+                                   df.abs = df.abs,
+                                   algorithm = algorithm,
+                                   n = 0,
+                                   check.validity = FALSE,
+                                   ...)
 
-ex.candidates.et <- histoc::et_mmp(data = candidates,
-                                   hlaA = hlaAet,
-                                   hlaB = hlaBet,
-                                   hlaDR = hlaDRet,
-                                   abo.freq = ABOpt,
-                                   check.validity = F
-) |> 
-  rename(a1 = A1_freq, a2 = A2_freq,
-         b1 = B1_freq, b2 = B2_freq,
-         dr1 = DR1_freq, dr2 = DR2_freq
-  ) |>
-  select(ID,bg,A1,A2,B1,B2,DR1,DR2,age,dialysis,cPRA,a1,a2,b1,b2,dr1,dr2,abo,MMP) # ex.candidates.pt
+# for loop to select 2 available candidates for a pool of donors
+used.candidates <- NULL
+result <- NULL
+for(i in 1: length(all_pairs)){
+  tmp <- all_pairs[[i]][!ID %in% used.candidates][1:2,]
+  
+  result <- data.table::rbindlist(list(result, tmp))
+  used.candidates <- c(used.candidates, tmp$ID)
+}
 
-#ex.candidates.uk <- histoc::candidates.uk
+result[!is.na(ID),] %>% 
+  rowwise() %>% 
+  mutate(txScore = histoc::txscore(recipient.age = age
+                                   , recipient.dialysis = dialysis
+                                   , donor.age = donor_age
+                                   , mmHLA_A = mmA
+                                   , mmHLA_B = mmB
+                                   , mmHLA_DR = mmDR)$prob5y
+  ) %>% ungroup()
 
-#ex.donors.uk <- histoc::donors.uk
+}
+############################################
 
 function(input, output, session) {
   
   output$ex.cands<- renderDataTable({
     
-    datatable(ex.candidates.pt %>%
-                select(ID, bg,A1,A2,B1,B2,DR1,DR2,age,dialysis,cPRA),
+    datatable(histoc::candidates,
               rownames = FALSE)
   })
   output$ex.abs<- renderDataTable({
@@ -173,9 +183,7 @@ function(input, output, session) {
   
   output$res1 <- renderDataTable({
     
-    if (input$dataInput == 1) {candidates<-ex.candidates.pt %>% 
-      select(ID, bg,A1,A2,B1,B2,DR1,DR2,age,dialysis,cPRA)} else {candidates<-datasetCands() %>% 
-        select(ID, bg,A1,A2,B1,B2,DR1,DR2,age,dialysis,cPRA)}
+    if (input$dataInput == 1) {candidates<-histoc::candidates} else {candidates<-datasetCands()}
     if (input$dataInput == 1) {abs.d<-histoc::cabs} else {abs.d<-datasetAbs()}
     
     validate(
@@ -186,34 +194,35 @@ function(input, output, session) {
       need(abs.d != "", "Please select candidates' HLA antibodies data set!")
     )
     
-      dt<-pt_points(iso = input$iso, # isogroup compatibility
+      dt<-histoc::pts(iso = input$iso, # isogroup compatibility
                   dABO = input$dabo, # donor's blood group
                   dA = c(input$a1,input$a2),
                   dB = c(input$b1,input$b2),
                   dDR = c(input$dr1,input$dr2),
-                  dage = input$dage, # donor's age
-                  cdata = candidates, # data file with candidates
-                  pra80 = as.numeric(input$pra8), # points for a PRA equal or higher than 80%
-                  pra50 = as.numeric(input$pra5), # points for a PRA equal or higher than 50%
-                  month = input$dialysis, # points for each month on dialysis
-                  points = input$age_dif, # points for age difference in PT punctuation table
+                  donor.age = input$dage, # donor's age
+                  data = candidates, # data file with candidates
+                  points.80 = as.numeric(input$pra8), # points for a PRA equal or higher than 80%
+                  points.50 = as.numeric(input$pra5), # points for a PRA equal or higher than 50%
+                  points.dialysis = input$dialysis, # points for each month on dialysis
+                  points.age = input$age_dif, # points for age difference in PT punctuation table
                   itemA = as.numeric(input$a), # points for A) on PT points table
                   itemB = as.numeric(input$b), # points for B) on PT points table
                   itemC = as.numeric(input$c), # points for C) on PT points table
                   itemD = as.numeric(input$d), # points for D) on PT points table
                   itemE = as.numeric(input$e), # points for E) on PT points table
                   df.abs = abs.d, # candidates' HLA antibodies
-                  n = 10)
+                  n = 10,
+                  check.validity = FALSE)
       
       dt <- dt %>%
-        #rowwise() %>% 
-        mutate(txScore = txscore(ageR = age
-                                 , timeD = dialysis
-                                 , ageD = donor_age
+        rowwise() %>% 
+        mutate(txScore = histoc::txscore(recipient.age = age
+                                 , recipient.dialysis = dialysis
+                                 , donor.age = donor_age
                                  , mmHLA_A = mmA
                                  , mmHLA_B = mmB
                                  , mmHLA_DR = mmDR)$prob5y
-               ) #%>% ungroup()
+               ) %>% ungroup()
 
     datatable(dt, options = list(pageLength = 5, dom = 'tip'))
   })
@@ -239,19 +248,8 @@ function(input, output, session) {
         # Update progress
         incProgress(1/N)
         }
-      
-      iso = input$iso
-      pra80 = as.numeric(input$pra8) # points for a PRA equal or higher than 80%
-      pra50 = as.numeric(input$pra5) # points for a PRA equal or higher than 50%
-      month = input$dialysis # points for each month on dialysis
-      points = input$age_dif # points for age difference in PT punctuation table
-      itemA = as.numeric(input$a) # points for A) on PT points table
-      itemB = as.numeric(input$b) # points for B) on PT points table
-      itemC = as.numeric(input$c) # points for C) on PT points table
-      itemD = as.numeric(input$d) # points for D) on PT points table
-      itemE = as.numeric(input$e) # points for E) on PT points table
-   
-    if (input$dataInput == 1) {candidates<-ex.candidates.pt} else {candidates<-datasetCands() %>% 
+
+    if (input$dataInput == 1) {candidates<-histoc::candidates} else {candidates<-datasetCands() %>% 
       select(ID, bg,A1,A2,B1,B2,DR1,DR2,age,dialysis,cPRA)}
     if (input$dataInput == 1) {abs.d<-histoc::cabs} else {abs.d<-datasetAbs()}
     if (input$dataInput == 1) {donors<-histoc::donors} else {donors<-datasetDonors()}
@@ -267,52 +265,25 @@ function(input, output, session) {
     validate(
       need(donors != "", "Please select donors' data set!")
     )
+    
+    dt <- res_mult(df.donors = donors,
+                   df.candidates = candidates,
+                   df.abs = abs.d,
+                   algorithm = pts,
+                   n = 0,
+                   check.validity = FALSE,
+                   iso = input$iso,
+                   points.80 = as.numeric(input$pra8),
+                   points.50 = as.numeric(input$pra5),
+                   points.dialysis = input$dialysis,
+                   points.age = input$age_dif,
+                   itemA = as.numeric(input$a),
+                   itemB = as.numeric(input$b),
+                   itemC = as.numeric(input$c),
+                   itemD = as.numeric(input$d),
+                   itemE = as.numeric(input$e)
+                   )
 
-    # add a column to candidates' file to update respective donors
-    candidatesN<-candidates %>% mutate(donor = 'X') # donor column changed to character
-    
-    # create a list with the same length of the number of donors
-    res <- vector("list", length = dim(donors)[1])
-    
-    # now the for loop
-    for (i in 1:dim(donors)[1]){
-      candid<-candidatesN %>% filter(donor == 'X')
-      
-      res[[i]]<-pt_points(iso = iso, # ABO compatibility as selected 
-                          dABO = donors$bg[i], # donor's blood group
-                          dA = c(donors$A1[i],donors$A2[i]), 
-                          dB = c(donors$B1[i],donors$B2[i]), 
-                          dDR = c(donors$DR1[i],donors$DR2[i]),
-                          dage = donors$age[i], # donor's age
-                          cdata = candid, # data file with candidates
-                          pra80 = pra80, # points for a PRA equal or higher than 80%
-                          pra50 = pra50, # points for a PRA equal or higher than 50%
-                          month = month, # points for each month on dialysis
-                          points = points, # points for age difference in PT punctuation table
-                          itemA = itemA, # points for A) on PT points table
-                          itemB = itemB, # points for B) on PT points table
-                          itemC = itemC, # points for C) on PT points table
-                          itemD = itemD, # points for D) on PT points table
-                          itemE = itemE, # points for E) on PT points table
-                          df.abs = abs.d) %>% 
-        mutate(donor = donors$ID[i])
-      
-      candidatesN<-candidatesN %>% 
-        mutate(donor = case_when(ID %in% res[[i]]$ID ~ donors$ID[i],
-                                 TRUE ~ donor))
-      
-    }
-    
-    ## bind the results in the list and compute txScore
-    dt <- do.call(rbind, res) %>% 
-      mutate(txScore = txscore(ageR = age
-                               , timeD = dialysis
-                               , ageD = donor_age
-                               , mmHLA_A = mmA
-                               , mmHLA_B = mmB
-                               , mmHLA_DR = mmDR)$prob5y
-      )
-    # add to reactiveval
     compute_resm(dt)
     })
     
@@ -357,71 +328,23 @@ function(input, output, session) {
   ############################
   ### ET algorithm
   ############################
-  
-  ## compute MMP for uploaded candidates dataset
-  # take uploaded dataset and compute MMP
-  datasetCandsET<-reactive({
-    
-    # select HLA frequencies from PT or ET
-    if (input$hlafreqs == 1) {hlaA<-hlaApt} else {hlaA<-hlaAet}
-    if (input$hlafreqs == 1) {hlaB<-hlaBpt} else {hlaB<-hlaBet}
-    if (input$hlafreqs == 1) {hlaDR<-hlaDRpt} else {hlaDR<-hlaDRet}
-    
-    #if (input$hlafreqs == 1) {abo<-abopt} else {abo<-aboet}
-    
-    if (input$hlafreqs == 1) {SallA<-SallApt} else {SallA<-SallAet}
-    if (input$hlafreqs == 1) {SallB<-SallBpt} else {SallB<-SallBet}
-    if (input$hlafreqs == 1) {SallDR<-SallDRpt} else {SallDR<-SallDRet}
-    
-    # join allele frequencies to candidates dataset
-    data<-datasetCands() %>% left_join(hlaA %>% select(A,freq), by = c("A1" = "A"))
-    data<- data %>% rename(a1=freq)
-    data<-data %>% left_join(hlaA %>% select(A,freq), by = c("A2" = "A"))
-    data<- data %>% rename(a2=freq)
-    data<-data %>% left_join(hlaB %>% select(B,freq), by = c("B1" = "B"))
-    data<- data %>% rename(b1=freq)
-    data<-data %>% left_join(hlaB %>% select(B,freq), by = c("B2" = "B"))
-    data<- data %>% rename(b2=freq)
-    data<-data %>% left_join(hlaDR %>% select(DR,freq), by = c("DR1" = "DR"))
-    data<- data %>% rename(dr1=freq)
-    data<-data %>% left_join(hlaDR %>% select(DR,freq), by = c("DR2" = "DR"))
-    data<- data %>% rename(dr2=freq)
-    data<-data %>% left_join(abo, by = c("bg" = "abo"))
-    data<- data %>% rename(abo=freq)
 
-  # compute MMP2 and add it to the data file
-  data$MMP2 <- with(data,
-                         (((2*(a1+a2)*(1 - a1 - a2)) - a1^2 - a2^2 + SallA) /
-                            ((a1+a2)^2))
-                         + (((2*(b1+b2)*(1 - b1 - b2)) - b1^2 - b2^2 + SallB) /
-                              ((b1+b2)^2))
-                         + (((2*(dr1+dr2)*(1 - dr1 - dr2) ) - dr1^2 - dr2^2 + SallDR) /
-                              ((dr1+dr2)^2))
-  )
-
-  # compute MMP0 and add it to the data file
-  data$MMP0 <- with(data,
-                         (a1+a2)^2 * (b1+b2)^2 * (dr1+dr2)^2)
-
-  # compute MMP1 and add it to the data file
-  data$MMP1 <- with(data,
-                         MMP0 * MMP2)
-
-  # compute MMP and add it to the data file
-  data$MMP<-with(data,
-                      100 * (1-(abo * (1-cPRA/100) * (MMP0 + MMP1)))^1000
-  )
-  
-  data
-  })
-
- 
   ## for 10 first candidates selected according to unique donor 
   output$res1ET <- renderDataTable({
     
-    if (input$hlafreqs == 1) {ex.candidates<-ex.candidates.et} else {ex.candidates<-ex.candidates.et}
+    if (input$hlafreqs == 1) {
+      hlaA <- histoc::hlaApt
+      hlaB <- histoc::hlaBpt
+      hlaDR <- histoc::hlaDRpt
+      ABOfreq <- histoc::ABOpt
+      } else {
+        hlaA <- histoc::hlaAet
+        hlaB <- histoc::hlaBet
+        hlaDR <- histoc::hlaDRet
+        ABOfreq <- histoc::ABOpt
+        }
 
-    if (input$dataInput == 1) {candidates<-ex.candidates} else {candidates<-datasetCandsET()}
+    if (input$dataInput == 1) {candidates<-histoc::candidates} else {candidates<-datasetCands()}
     if (input$dataInput == 1) {abs.d<-histoc::cabs} else {abs.d<-datasetAbs()}
 
     validate(
@@ -432,32 +355,37 @@ function(input, output, session) {
       need(abs.d != "", "Please select candidates' HLA antibodies data set!")
     )
 
-    dt<-et_points(iso = input$isoET, # isogroup compatibility
-                  dABO = input$daboET, # donor's blood group
-                  dA = c(input$a1ET,input$a2ET),
-                  dB = c(input$b1ET,input$b2ET),
-                  dDR = c(input$dr1ET,input$dr2ET),
-                  dage = input$dageET, # donor's age
-                  cdata = candidates, # data file with candidates
-                  month = as.numeric(input$tdET), # points for each month on dialysis
-                  mm0 = as.numeric(input$mm0), # points for 0 HLA mm on ETKAS points table
-                  mm1 = as.numeric(input$mm1), # points for 1 HLA mm on ET points table
-                  mm2 = as.numeric(input$mm2), # points for 2 HLA mm on ET points table
-                  mm3 = as.numeric(input$mm3), # points for 3 HLA mm on ET points table
-                  mm4 = as.numeric(input$mm4), # points for 4 HLA mm on ET points table
-                  mm5 = as.numeric(input$mm5), # points for 5 HLA mm on ET points table
-                  mm6 = as.numeric(input$mm6), # points for 6 HLA mm on ET points table
-                  df.abs = abs.d, # candidates' HLA antibodies
-                  n = 10)
+    dt<-et(iso = input$isoET, 
+           dABO = input$daboET, 
+           dA = c(input$a1ET,input$a2ET),
+           dB = c(input$b1ET,input$b2ET),
+           dDR = c(input$dr1ET,input$dr2ET),
+           donor.age = input$dageET,
+           data = candidates,
+           month = as.numeric(input$tdET),
+           mm0 = as.numeric(input$mm0),
+           mm1 = as.numeric(input$mm1),
+           mm2 = as.numeric(input$mm2),
+           mm3 = as.numeric(input$mm3),
+           mm4 = as.numeric(input$mm4),
+           mm5 = as.numeric(input$mm5),
+           mm6 = as.numeric(input$mm6),
+           df.abs = abs.d,
+           hlaA = hlaA,
+           hlaB = hlaB,
+           hlaDR = hlaDR,
+           abo.freq = ABOfreq,
+           n = 10)
 
     dt <- dt %>%
-      mutate(txScore = txscore(ageR = age
-                               , timeD = dialysis
-                               , ageD = donor_age
-                               , mmHLA_A = mmA
-                               , mmHLA_B = mmB
-                               , mmHLA_DR = mmDR)$prob5y
-      )
+      rowwise() %>% 
+      mutate(txScore = histoc::txscore(recipient.age = age
+                                       , recipient.dialysis = dialysis
+                                       , donor.age = donor_age
+                                       , mmHLA_A = mmA
+                                       , mmHLA_B = mmB
+                                       , mmHLA_DR = mmDR)$prob5y
+      ) %>% ungroup()
     
     datatable(dt, options = list(pageLength = 5, dom = 'tip'))
   }) 
@@ -476,24 +404,24 @@ function(input, output, session) {
     withProgress(message = 'Calculation in progress, be patient!', {
       for(i in 1:N){
         # Long Running Task
-        Sys.sleep(1)
+        Sys.sleep(0.01)
         # Update progress
         incProgress(1/N)
       }
-      
-      iso = input$isoET
-      month = as.numeric(input$tdET) # points for each month on dialysis
-      mm0 = as.numeric(input$mm0) # points for 0 HLA mm on ETKAS points table
-      mm1 = as.numeric(input$mm1) # points for 1 HLA mm on ET points table
-      mm2 = as.numeric(input$mm2) # points for 2 HLA mm on ET points table
-      mm3 = as.numeric(input$mm3) # points for 3 HLA mm on ET points table
-      mm4 = as.numeric(input$mm4) # points for 4 HLA mm on ET points table
-      mm5 = as.numeric(input$mm5) # points for 5 HLA mm on ET points table
-      mm6 = as.numeric(input$mm6) # points for 6 HLA mm on ET points table
+
+      if (input$hlafreqs == 1) {
+        hlaA <- histoc::hlaApt
+        hlaB <- histoc::hlaBpt
+        hlaDR <- histoc::hlaDRpt
+        ABOfreq <- histoc::ABOpt
+      } else {
+        hlaA <- histoc::hlaAet
+        hlaB <- histoc::hlaBet
+        hlaDR <- histoc::hlaDRet
+        ABOfreq <- histoc::ABOpt
+      }
      
-      if (input$hlafreqs == 1) {ex.candidates<-ex.candidates.et} else {ex.candidates<-ex.candidates.et}
-      if (input$dataInput == 1) {candidates<-ex.candidates} else {candidates<-datasetCandsET()}
-      
+      if (input$dataInput == 1) {candidates<-histoc::candidates} else {candidates<-datasetCands()}
       if (input$dataInput == 1) {abs.d<-histoc::cabs} else {abs.d<-datasetAbs()}
       if (input$dataInput == 1) {donors<-histoc::donors} else {donors<-datasetDonors()}
       
@@ -509,50 +437,27 @@ function(input, output, session) {
         need(donors != "", "Please select donors' data set!")
       )
       
-      # add a column to candidates' file to update respective donors
-      candidatesN<-candidates %>% mutate(donor = 'X')
-      
-      # create a list with the same length of the number of donors
-      res <- vector("list", length = dim(donors)[1])
-      
-      # now the for loop
-      for (i in 1:dim(donors)[1]){
-        candid<-candidatesN %>% filter(donor == 'X')
-        
-        res[[i]]<-et_points(iso = iso, # isogroup compatibility
-                            dABO = donors$bg[i], # donor's blood group
-                            dA = c(donors$A1[i],donors$A2[i]), 
-                            dB = c(donors$B1[i],donors$B2[i]), 
-                            dDR = c(donors$DR1[i],donors$DR2[i]),
-                            dage = donors$age[i], # donor's age
-                            cdata = candid, # data file with candidates
-                            month = month, # points for each month on dialysis
-                            mm0 = mm0, # points for 0 HLA mm on ETKAS points table
-                            mm1 = mm1, # points for 1 HLA mm on ET points table
-                            mm2 = mm2, # points for 2 HLA mm on ET points table
-                            mm3 = mm3, # points for 3 HLA mm on ET points table
-                            mm4 = mm4, # points for 4 HLA mm on ET points table
-                            mm5 = mm5, # points for 5 HLA mm on ET points table
-                            mm6 = mm6, # points for 6 HLA mm on ET points table
-                            df.abs = abs.d) %>% 
-          mutate(donor = donors$ID[i])
-        
-        candidatesN<-candidatesN %>% 
-          mutate(donor = case_when(ID %in% res[[i]]$ID ~ donors$ID[i],
-                                   TRUE ~ donor))
-        
-      }
-      
-      ## bind the results in the list and compute txScore
-      dt <- do.call(rbind, res) %>% 
-        mutate(txScore = txscore(ageR = age
-                                 , timeD = dialysis
-                                 , ageD = donor_age
-                                 , mmHLA_A = mmA
-                                 , mmHLA_B = mmB
-                                 , mmHLA_DR = mmDR)$prob5y
-        )
-      # add to reactiveval
+      dt <- res_mult(df.donors = donors,
+                     df.candidates = candidates,
+                     df.abs = abs.d,
+                     algorithm = et,
+                     n = 0,
+                     check.validity = FALSE,
+                     iso = input$isoET,
+                     month = as.numeric(input$tdET),
+                     mm0 = as.numeric(input$mm0),
+                     mm1 = as.numeric(input$mm1),
+                     mm2 = as.numeric(input$mm2),
+                     mm3 = as.numeric(input$mm3),
+                     mm4 = as.numeric(input$mm4),
+                     mm5 = as.numeric(input$mm5),
+                     mm6 = as.numeric(input$mm6),
+                     hlaA = hlaA,
+                     hlaB = hlaB,
+                     hlaDR = hlaDR,
+                     abo.freq = ABOfreq,
+                     )
+
       compute_resmET(dt)
       
       })
@@ -607,9 +512,7 @@ function(input, output, session) {
   
   output$res1LIMA <- renderDataTable({
     
-    if (input$dataInput == 1) {candidates<-ex.candidates.pt %>% 
-      select(ID, bg,A1,A2,B1,B2,DR1,DR2,age,dialysis,cPRA)} else {candidates<-datasetCands() %>% 
-        select(ID, bg,A1,A2,B1,B2,DR1,DR2,age,dialysis,cPRA)}
+    if (input$dataInput == 1) {candidates<-histoc::candidates} else {candidates<-datasetCands()}
     if (input$dataInput == 1) {abs.d<-histoc::cabs} else {abs.d<-datasetAbs()}
     
     validate(
@@ -619,31 +522,31 @@ function(input, output, session) {
     validate(
       need(abs.d != "", "Please select candidates' HLA antibodies data set!")
     )
-    
-    candidates<-candidates %>% mutate(color = case_when(cPRA >= 85 | dialysis >= input$td3q ~ "orange",
-                                                        cPRA >= 50 | dialysis >= input$td2q ~ "yellow",
-                                                        TRUE ~ "green"),
-                                      color = fct_relevel(color,"orange","yellow","green")
-                                      )
-    
-    dt<-lima_order(iso = input$isoLIMA, # isogroup compatibility
+
+    dt<-histoc::lima(iso = input$isoLIMA, # isogroup compatibility
                    dABO = input$daboLIMA, # donor's blood group
                    dA = c(input$a1LIMA,input$a2LIMA),
                    dB = c(input$b1LIMA,input$b2LIMA),
                    dDR = c(input$dr1LIMA,input$dr2LIMA),
-                   dage = input$dageLIMA, # donor's age
-                   cdata = candidates, # data file with candidates
+                   donor.age = input$dageLIMA, # donor's age
+                   data = candidates, # data file with candidates
                    df.abs = abs.d, # candidates' HLA antibodies
-                   n = 10)
+                   n = 10,
+                   q2 = input$td2q,
+                   q3 = input$td3q,
+                   cPRA1 = 50,
+                   cPRA2 = 85,
+                   check.validity = FALSE)
     
     dt <- dt %>%
-      mutate(txScore = txscore(ageR = age
-                               , timeD = dialysis
-                               , ageD = donor_age
-                               , mmHLA_A = mmA
-                               , mmHLA_B = mmB
-                               , mmHLA_DR = mmDR)$prob5y
-      )
+      rowwise() %>% 
+      mutate(txScore = histoc::txscore(recipient.age = age
+                                       , recipient.dialysis = dialysis
+                                       , donor.age = donor_age
+                                       , mmHLA_A = mmA
+                                       , mmHLA_B = mmB
+                                       , mmHLA_DR = mmDR)$prob5y
+      ) %>% ungroup()
     
     datatable(dt, options = list(pageLength = 5, dom = 'tip'))
     
@@ -664,11 +567,7 @@ function(input, output, session) {
         incProgress(1/N)
       }
       
-      iso = input$isoLIMA
-      
-      if (input$dataInput == 1) {candidates<-ex.candidates.pt %>% 
-        select(ID, bg,A1,A2,B1,B2,DR1,DR2,age,dialysis,cPRA)} else {candidates<-datasetCands() %>% 
-          select(ID, bg,A1,A2,B1,B2,DR1,DR2,age,dialysis,cPRA)}
+      if (input$dataInput == 1) {candidates<-histoc::candidates} else {candidates<-datasetCands()}
       if (input$dataInput == 1) {abs.d<-histoc::cabs} else {abs.d<-datasetAbs()}
       if (input$dataInput == 1) {donors<-histoc::donors} else {donors<-datasetDonors()}
       
@@ -684,50 +583,19 @@ function(input, output, session) {
         need(donors != "", "Please select donors' data set!")
       )
       
-      # add colors column
-      candidates<-candidates %>% mutate(color = case_when(cPRA >= 85 | dialysis >= input$td3q ~ "orange",
-                                                          cPRA >= 50 | dialysis >= input$td2q ~ "yellow",
-                                                          TRUE ~ "green"),
-                                        color = fct_relevel(color,"orange","yellow","green")
-                                        )
-      # add a column to candidates' file to update respective donors
-      candidatesN<-candidates %>% mutate(donor = 'X')
-      
-      # create a list with the same length of the number of donors
-      res <- vector("list", length = dim(donors)[1])
-      
-      # now the for loop
-      for (i in 1:dim(donors)[1]){
-        candid<-candidatesN %>% filter(donor == 'X')
-        
-        res[[i]]<-lima_order(iso = iso, # isogroup compatibility
-                             dABO = donors$bg[i], # donor's blood group
-                             dA = c(donors$A1[i],donors$A2[i]), 
-                             dB = c(donors$B1[i],donors$B2[i]), 
-                             dDR = c(donors$DR1[i],donors$DR2[i]), # donor's HLA typing'
-                             dage = donors$age[i], # donor's age
-                             cdata = candid, # data file with candidates
-                             df.abs = abs.d, # data frame with candidates' HLA antibodies
-                             n = 2 # slice first n rows
-                             ) %>% 
-          mutate(donor = donors$ID[i])
-        
-        candidatesN<-candidatesN %>%
-          mutate(donor = case_when(ID %in% res[[i]]$ID ~ donors$ID[i],
-                                   TRUE ~ donor))
-        
-      }
-      
-      ## bind the results in the list and compute txScore
-      dt <- do.call(rbind, res) %>% 
-        mutate(txScore = txscore(ageR = age
-                                 , timeD = dialysis
-                                 , ageD = donor_age
-                                 , mmHLA_A = mmA
-                                 , mmHLA_B = mmB
-                                 , mmHLA_DR = mmDR)$prob5y
-        )
-      # add to reactiveval
+      dt <- res_mult(df.donors = donors,
+                     df.candidates = candidates,
+                     df.abs = abs.d,
+                     algorithm = lima,
+                     n = 0,
+                     check.validity = FALSE,
+                     iso = input$isoLIMA,
+                     q2 = input$td2q,
+                     q3 = input$td3q,
+                     cPRA1 = 50,
+                     cPRA2 = 85
+                     )
+ 
       compute_resmLIMA(dt)
 
     })
@@ -827,8 +695,7 @@ function(input, output, session) {
 
   output$res1UK <- renderDataTable({
 
-    if (input$dataInput == 1) {candidates<-histoc::candidates.uk} else {candidates<-datasetCands()%>%
-      select(ID, bg,A1,A2,B1,B2,DR1,DR2,age,dialysis,cPRA, Tier, MS, RRI)}
+    if (input$dataInput == 1) {candidates<-histoc::candidates.uk} else {candidates<-datasetCands()}
     if (input$dataInput == 1) {abs.d<-histoc::cabs} else {abs.d<-datasetAbs()}
 
     validate(
@@ -839,15 +706,15 @@ function(input, output, session) {
       need(abs.d != "", "Please select candidates' HLA antibodies data set!")
     )
 
-    dt<-uk_points(DRI = ifelse(driv() <= 0.79, "D1",
+    dt<-histoc::uk(DRI = ifelse(driv() <= 0.79, "D1",
                                ifelse(driv() <= 1.12,"D2",
                                       ifelse(driv() <= 1.5,"D3","D4"))), # Donor RisK Index group
                   dA = c(input$a1UK,input$a2UK), # donor's HLA typing'
                   dB = c(input$b1UK,input$b2UK),
                   dDR = c(input$dr1UK,input$dr2UK),
                   dABO = input$daboUK, # donors' blood group
-                  dage = input$dageUK, # donors' age
-                  cdata = candidates, # data file with candidates
+                  donor.age = input$dageUK, # donors' age
+                  data = candidates, # data file with candidates
                   D1R1 = 1000,
                   D1R2 = 700,
                   D1R3 = 350,
@@ -865,30 +732,32 @@ function(input, output, session) {
                   D4R3 = 700,
                   D4R4 = 1000,
                   ptsDial = input$tdUK,
-                  a1 = input$aa1UK, # value on HLA match and age combined formula
-                  a2 = input$aa2UK, # value on HLA match and age combined formula
-                  b1 = input$bb1UK, # value on HLA match and age combined formula
-                  b2 = input$bb2UK, # value on HLA match and age combined formula
-                  b3 = input$bb3UK, # value on HLA match and age combined formula
-                  m = input$mUK, # matchability formula
-                  nn = input$nUK, # matchability formula
-                  o = input$oUK, # matchability formula
-                  mm1 = as.numeric(input$mm1UK), # substrating points for 1 mm
-                  mm23 = as.numeric(input$mm23UK), # substrating points for 2-3 mm
-                  mm46 = as.numeric(input$mm46UK), # substrating points for 4-6 mm
-                  pts = input$bloodUK, # substrating points for B blood group
-                  df.abs = abs.d, # data frame with candidates' HLA antibodies
-                  n = 10 # slice first n rows
-    )
+                  a1 = input$aa1UK, 
+                  a2 = input$aa2UK, 
+                  b1 = input$bb1UK, 
+                  b2 = input$bb2UK, 
+                  b3 = input$bb3UK, 
+                  m = input$mUK, 
+                  nn = input$nUK, 
+                  o = input$oUK, 
+                  mm1 = as.numeric(input$mm1UK), 
+                  mm23 = as.numeric(input$mm23UK), 
+                  mm46 = as.numeric(input$mm46UK), 
+                  pts = input$bloodUK, 
+                  df.abs = abs.d, 
+                  n = 10,
+                  check.validity = FALSE
+                  )
 
     dt <- dt %>%
-      mutate(txScore = txscore(ageR = age
-                               , timeD = dialysis
-                               , ageD = donor_age
-                               , mmHLA_A = mmA
-                               , mmHLA_B = mmB
-                               , mmHLA_DR = mmDR)$prob5y
-      )
+      rowwise() %>% 
+      mutate(txScore = histoc::txscore(recipient.age = age
+                                       , recipient.dialysis = dialysis
+                                       , donor.age = donor_age
+                                       , mmHLA_A = mmA
+                                       , mmHLA_B = mmB
+                                       , mmHLA_DR = mmDR)$prob5y
+      ) %>% ungroup()
 
     datatable(dt, options = list(pageLength = 5, dom = 'tip'))
 
@@ -910,9 +779,7 @@ function(input, output, session) {
       }
 
 
-      if (input$dataInput == 1) {candidates<-histoc::candidates.uk %>%
-        select(ID, bg,A1,A2,B1,B2,DR1,DR2,age,dialysis,cPRA,
-               Tier, RRI, MS)} else {candidates<-datasetCands()}
+      if (input$dataInput == 1) {candidates<-histoc::candidates.uk} else {candidates<-datasetCands()}
       if (input$dataInput == 1) {abs.d<-histoc::cabs} else {abs.d<-datasetAbs()}
       if (input$dataInput == 1) {donors<-histoc::donors.uk %>%
         select(ID, bg, A1, A2, B1, B2, DR1, DR2, age, DRI)} else {donors<-datasetDonors()}
@@ -929,73 +796,47 @@ function(input, output, session) {
       validate(
         need(donors != "", "Please select donors' data set!")
       )
+      
+      dt <- res_mult(df.donors = donors,
+                     df.candidates = candidates,
+                     df.abs = abs.d,
+                     algorithm = uk,
+                     n = 0,
+                     check.validity = FALSE,
+                     DRI = ifelse(driv() <= 0.79, "D1",
+                                  ifelse(driv() <= 1.12,"D2",
+                                         ifelse(driv() <= 1.5,"D3","D4"))),
+                     D1R1 = 1000,
+                     D1R2 = 700,
+                     D1R3 = 350,
+                     D1R4 = 0,
+                     D2R1 = 700,
+                     D2R2 = 1000,
+                     D2R3 = 500,
+                     D2R4 = 350,
+                     D3R1 = 350,
+                     D3R2 = 500,
+                     D3R3 = 1000,
+                     D3R4 = 700,
+                     D4R1 = 0,
+                     D4R2 = 350,
+                     D4R3 = 700,
+                     D4R4 = 1000,
+                     ptsDial = input$tdUK,
+                     a1 = input$aa1UK, 
+                     a2 = input$aa2UK, 
+                     b1 = input$bb1UK, 
+                     b2 = input$bb2UK, 
+                     b3 = input$bb3UK, 
+                     m = input$mUK, 
+                     nn = input$nUK, 
+                     o = input$oUK, 
+                     mm1 = as.numeric(input$mm1UK), 
+                     mm23 = as.numeric(input$mm23UK), 
+                     mm46 = as.numeric(input$mm46UK), 
+                     pts = input$bloodUK
+                     )
 
-      # add a column to candidates' file to update respective donors
-      candidatesN<-candidates %>% mutate(donor = 'X')
-
-      # create a list with the same length of the number of donors
-      res <- vector("list", length = dim(donors)[1])
-
-      # now the for loop
-      for (i in 1:dim(donors)[1]){
-        candid<-candidatesN %>% filter(donor == 'X')
-
-        res[[i]]<-uk_points(DRI = donors$DRI[i], # Donor RisK Index group
-                            dABO = donors$bg[i], # donor's blood group
-                            dA = c(donors$A1[i],donors$A2[i]),
-                            dB = c(donors$B1[i],donors$B2[i]),
-                            dDR = c(donors$DR1[i],donors$DR2[i]), # donor's HLA typing'
-                            dage = donors$age[i], # donor's age
-                            cdata = candid, # data file with candidates
-                            D1R1 = 1000,
-                            D1R2 = 700,
-                            D1R3 = 350,
-                            D1R4 = 0,
-                            D2R1 = 700,
-                            D2R2 = 1000,
-                            D2R3 = 500,
-                            D2R4 = 350,
-                            D3R1 = 350,
-                            D3R2 = 500,
-                            D3R3 = 1000,
-                            D3R4 = 700,
-                            D4R1 = 0,
-                            D4R2 = 350,
-                            D4R3 = 700,
-                            D4R4 = 1000,
-                            ptsDial = input$tdUK,
-                            a1 = input$aa1UK, # value on HLA match and age combined formula
-                            a2 = input$aa2UK, # value on HLA match and age combined formula
-                            b1 = input$bb1UK, # value on HLA match and age combined formula
-                            b2 = input$bb2UK, # value on HLA match and age combined formula
-                            b3 = input$bb3UK, # value on HLA match and age combined formula
-                            m = input$mUK, # matchability formula
-                            nn = input$nUK, # matchability formula
-                            o = input$oUK, # matchability formula
-                            mm1 = as.numeric(input$mm1UK), # substrating points for 1 mm
-                            mm23 = as.numeric(input$mm23UK), # substrating points for 2-3 mm
-                            mm46 = as.numeric(input$mm46UK), # substrating points for 4-6 mm
-                            pts = input$bloodUK, # substrating points for B blood group
-                            df.abs = abs.d, # data frame with candidates' HLA antibodies
-                            n = 2 # slice first n rows
-        ) %>%
-          mutate(donor = donors$ID[i])
-
-        candidatesN<-candidatesN %>%
-          mutate(donor = case_when(ID %in% res[[i]]$ID ~ donors$ID[i],
-                                   TRUE ~ donor))
-
-      }
-
-      ## bind the results in the list and compute txScore
-      dt <- do.call(rbind, res) %>%
-        mutate(txScore = txscore(ageR = age
-                                 , timeD = dialysis
-                                 , ageD = donor_age
-                                 , mmHLA_A = mmA
-                                 , mmHLA_B = mmB
-                                 , mmHLA_DR = mmDR)$prob5y
-        )
       # add to reactiveval
       compute_resmUK(dt)
 

@@ -18,7 +18,7 @@ fluidPage(theme = shinytheme("spacelab"),
           a(href="https://txor.netlify.app/", target="_blank",
             h1("Transplants Open Registry (TxOR)")),
           
-          navbarPage("KARS (version 0.1.0)",
+          navbarPage("KARS (version 1.0.0)",
                      tabPanel("Home", icon = icon("home"),
                               sidebarPanel(
                                 HTML('<p><img src="kidneys2.jpg" width=300 height=300></p>')
