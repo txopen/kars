@@ -20,17 +20,19 @@ function(input, output, session) {
                 select(ID, bg,A1,A2,B1,B2,DR1,DR2,age,dialysis,cPRA),
               rownames = FALSE)
   })
+
   output$ex.abs<- renderDataTable({
     datatable(ex.abs,
               rownames = FALSE)
   })
+
   output$ex.donors<- renderDataTable({
     datatable(ex.donors,
               rownames = FALSE)
   })
   
   # reactive to the input UK files
-  ukf<-reactive(input$ukfiles)
+  ukf <- reactive(input$ukfiles)
   
   # read candidates' file
   datasetCands <- reactive({
@@ -302,8 +304,7 @@ function(input, output, session) {
   )
   
   ## Resume dataset results from PT algorithm
-  output$resumePT <-
-    render_gt({
+  output$resumePT <- render_gt({
       
       validate(
         need(compute_resm() != "", "Results will be presented after the run!")
@@ -357,30 +358,30 @@ function(input, output, session) {
     data<-data %>% left_join(abo, by = c("bg" = "abo"))
     data<- data %>% rename(abo=freq)
 
-  # compute MMP2 and add it to the data file
-  data$MMP2 <- with(data,
-                         (((2*(a1+a2)*(1 - a1 - a2)) - a1^2 - a2^2 + SallA) /
-                            ((a1+a2)^2))
-                         + (((2*(b1+b2)*(1 - b1 - b2)) - b1^2 - b2^2 + SallB) /
-                              ((b1+b2)^2))
-                         + (((2*(dr1+dr2)*(1 - dr1 - dr2) ) - dr1^2 - dr2^2 + SallDR) /
-                              ((dr1+dr2)^2))
-  )
+    # compute MMP2 and add it to the data file
+    data$MMP2 <- with(data,
+                          (((2*(a1+a2)*(1 - a1 - a2)) - a1^2 - a2^2 + SallA) /
+                              ((a1+a2)^2))
+                          + (((2*(b1+b2)*(1 - b1 - b2)) - b1^2 - b2^2 + SallB) /
+                                ((b1+b2)^2))
+                          + (((2*(dr1+dr2)*(1 - dr1 - dr2) ) - dr1^2 - dr2^2 + SallDR) /
+                                ((dr1+dr2)^2))
+    )
 
-  # compute MMP0 and add it to the data file
-  data$MMP0 <- with(data,
-                         (a1+a2)^2 * (b1+b2)^2 * (dr1+dr2)^2)
+    # compute MMP0 and add it to the data file
+    data$MMP0 <- with(data,
+                          (a1+a2)^2 * (b1+b2)^2 * (dr1+dr2)^2)
 
-  # compute MMP1 and add it to the data file
-  data$MMP1 <- with(data,
-                         MMP0 * MMP2)
+    # compute MMP1 and add it to the data file
+    data$MMP1 <- with(data,
+                          MMP0 * MMP2)
 
-  # compute MMP and add it to the data file
-  data$MMP<-with(data,
-                      100 * (1-(abo * (1-cPRA/100) * (MMP0 + MMP1)))^1000
-  )
-  
-  data
+    # compute MMP and add it to the data file
+    data$MMP<-with(data,
+                        100 * (1-(abo * (1-cPRA/100) * (MMP0 + MMP1)))^1000
+    )
+    
+    data
   })
 
  
@@ -572,7 +573,6 @@ function(input, output, session) {
     shinyjs::reset("side-panelLima")
   })
   
-  
   output$res1LIMA <- renderDataTable({
     
     if (input$dataInput == 1) {candidates<-ex.candidates.pt %>% 
@@ -699,7 +699,7 @@ function(input, output, session) {
       compute_resmLIMA(dt)
 
     })
-    })
+  })
   
   output$resmLIMA <- renderDataTable({
     compute_resmLIMA()
@@ -758,6 +758,7 @@ function(input, output, session) {
   pointsM<-reactive({
     input$mUK * (1 + ((1:9) / input$nUK)^input$oUK)
   })
+
   output$matchability<-renderPlot({
     ggplot(data.frame(Points = pointsM(), MatchScore = 1:9)) +
       geom_line(aes(MatchScore,Points)) + 
@@ -790,8 +791,7 @@ function(input, output, session) {
          ifelse(driv() <= 0.79, "D1",
                 ifelse(driv() <= 1.12,"D2",
                        ifelse(driv() <= 1.5,"D3","D4"))))
-    })
-  
+  })
   
   output$res1UK <- renderDataTable({
     
