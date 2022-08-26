@@ -5,7 +5,7 @@ account: txor
 server: shinyapps.io
 hostUrl: https://api.shinyapps.io/v1
 appId: 6766162
-bundleId: 6211928
+bundleId: 6242223
 url: https://txor.shinyapps.io/kars/
-when: 1660773191.4261
-lastSyncTime: 1660773191.4261
+when: 1661550675.57799
+lastSyncTime: 1661550675.57799
