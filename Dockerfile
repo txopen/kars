@@ -29,6 +29,6 @@ COPY www www
 COPY server.R .
 COPY ui.R .
 
-EXPOSE 3838
 # Run app
-CMD ["Rscript", "-e", "shiny::runApp()"]
+EXPOSE 3838
+CMD ["R", "-e", "shiny::runApp(port = 3838, host = '0.0.0.0')"]
