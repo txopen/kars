@@ -20,7 +20,7 @@ RUN Rscript -e "devtools::install_version('synchronicity', version = '1.3.5', re
 RUN Rscript -e "devtools::install_version('DT', version = '0.24', repos = 'http://cran.us.r-project.org')"
 RUN Rscript -e "devtools::install_version('gtsummary', version = '1.6.1', repos = 'http://cran.us.r-project.org')"
 RUN Rscript -e "devtools::install_version('gt', version = '0.7.0', repos = 'http://cran.us.r-project.org')"
-RUN Rscript -e "devtools::install_version('tidyverse', version = '1.3.2', repos = 'http://cran.us.r-project.org')"
+RUN Rscript -e "devtools::install_version('dplyr', version = '1.0.7', repos = 'http://cran.us.r-project.org')"
 RUN Rscript -e "devtools::install_version('data.table', version = '1.14.2', repos = 'http://cran.us.r-project.org')"
 
 # Copy files
