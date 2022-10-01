@@ -88,13 +88,16 @@ function(input, output, session) {
       read.delim(file_cands$datapath)
     } else if (input$fileSepDF == 3) {
       data<-read.csv2(file_cands$datapath)
-    } else {data<-read.table(file_cands$datapath)}
+    } else {data<-read.table(file_cands$datapath, encoding = "UTF-8")}
     
      
     validate(
-      if(ukf() == 1){need(identical(colnames(data),c("ID","bg","A1","A2","B1","B2","DR1","DR2","age","dialysis","cPRA", "Tier", "MS", "RRI")), 
-                             "Candidates column names are not the necessary for UK algorithm!")} else {need(identical(colnames(data),c("ID","bg","A1","A2","B1","B2","DR1","DR2","age","dialysis","cPRA")), 
-           "Candidates column names are not identical to example data!")}
+      if(ukf() == 1){
+        need(histoc:::uk_candidate_dataframe_check(data) ,
+             "Candidates' file is not valid for UK algorithm!")
+    } else {
+      need(histoc:::candidate_dataframe_check(data),
+           "Candidates' file is not valid!")}
       )
     
     data %>% 
@@ -117,16 +120,16 @@ function(input, output, session) {
       read.delim(file_donors$datapath)
     } else if (input$fileSepDF == 3) {
       data<-read.csv2(file_donors$datapath)
-    } else {data<-read.table(file_donors$datapath)}
+    } else {data<-read.table(file_donors$datapath, encoding = "UTF-8")}
     
     
     validate(
       if(ukf() == 1){
-        need(identical(colnames(data),c(colnames(histoc::donors),"DRI")), 
-             "Donors column names are not the necessary for UK algorithm!")
+        need(histoc:::uk_donors_dataframe_check(data), 
+             "Donors' file is not valid for UK algorithm!")
       } else {
-      need(identical(colnames(data),colnames(histoc::donors)), 
-           "Donors column names are not identical to example data!")}
+      need(histoc:::donors_dataframe_check(data), 
+           "Donors' file is not valid!")}
     )
     
     data %>% 
@@ -149,7 +152,7 @@ function(input, output, session) {
       read.delim(file_abss$datapath)
     } else if (input$fileSepDF == 3) {
       data<-read.csv2(file_abss$datapath)
-    } else {data<-read.table(file_abss$datapath)}
+    } else {data<-read.table(file_abss$datapath, encoding = "UTF-8")}
     
     
     validate(
@@ -233,7 +236,7 @@ function(input, output, session) {
     shinyjs::reset("side-panelPT")
   })
   
-  N <- 2
+  N <- 1
   
   compute_resm <- reactiveVal()
  
@@ -244,7 +247,7 @@ function(input, output, session) {
     withProgress(message = 'Calculation in progress, be patient!', {
       for(i in 1:N){
         # Long Running Task
-        Sys.sleep(1)
+        Sys.sleep(0.0001)
         # Update progress
         incProgress(1/N)
         }
@@ -877,256 +880,464 @@ function(input, output, session) {
       tbl_summary(tabsum) %>% as_gt()
     })
   
-#   ######################################################################################
-#   ############ ligação entre inputs ############
-#   ############   
-#   ############ donor's age
-#   observeEvent(input$dage,{
-#     new <- input$dage
-#     updateSliderInput(session, "dageET", value = new) 
-#   })
-#   
-#   observeEvent(input$dageET,{ 
-#     new <- input$dageET
-#     updateSliderInput(session, "dage", value = new) 
-#   })
-#   
-#   observeEvent(input$dage,{
-#     new <- input$dage
-#     updateSliderInput(session, "dageLIMA", value = new) 
-#   })
-#   
-#   observeEvent(input$dageLIMA,{ 
-#     new <- input$dageLIMA
-#     updateSliderInput(session, "dage", value = new) 
-#   })
-#   
-#   observeEvent(input$dage,{
-#     new <- input$dage
-#     updateSliderInput(session, "dageUK", value = new) 
-#   })
-#   
-#   observeEvent(input$dageUK,{ 
-#     new <- input$dageUK
-#     updateSliderInput(session, "dage", value = new) 
-#   })
-#   
-#   ############ donor's ABO
-#   observeEvent(input$dabo,{
-#     new <- input$dabo
-#     updateRadioButtons(session, "daboET", selected = new)
-#   })
-#   
-#   observeEvent(input$daboET,{
-#     new <- input$daboET
-#     updateRadioButtons(session, "dabo", selected = new)
-#   })
-#   
-#   observeEvent(input$dabo,{
-#     new <- input$dabo
-#     updateRadioButtons(session, "daboLIMA", selected = new)
-#   })
-#   
-#   observeEvent(input$daboLIMA,{
-#     new <- input$daboLIMA
-#     updateRadioButtons(session, "dabo", selected = new)
-#   })
-#   
-#   observeEvent(input$dabo,{
-#     new <- input$dabo
-#     updateRadioButtons(session, "daboUK", selected = new)
-#   })
-#   
-#   observeEvent(input$daboUK,{
-#     new <- input$daboUK
-#     updateRadioButtons(session, "dabo", selected = new)
-#   })
-#   
-# ############ donor's typing HLA-A a1
-# observeEvent(input$a1,{
-#   new <- input$a1
-#   updateTextAreaInput(session, "a1ET", value  = new)
-# })
-# 
-# observeEvent(input$a1ET,{
-#   new <- input$a1ET
-#   updateTextAreaInput(session, "a1", value  = new)
-# })
-# 
-# observeEvent(input$a1,{
-#   new <- input$a1
-#   updateTextAreaInput(session, "a1LIMA", value  = new)
-# })
-# 
-# observeEvent(input$a1LIMA,{
-#   new <- input$a1LIMA
-#   updateTextAreaInput(session, "a1", value  = new)
-# })
-# 
-# observeEvent(input$a1,{
-#   new <- input$a1
-#   updateTextAreaInput(session, "a1UK", value  = new)
-# })
-# 
-# observeEvent(input$a1UK,{
-#   new <- input$a1UK
-#   updateTextAreaInput(session, "a1", value  = new)
-# })
-# 
-# ############ donor's typing HLA-A a2
-# observeEvent(input$a2,{
-#   new <- input$a2
-#   updateTextAreaInput(session, "a2ET", value  = new)
-# })
-# 
-# observeEvent(input$a2ET,{
-#   new <- input$a2ET
-#   updateTextAreaInput(session, "a2", value  = new)
-# })
-# 
-# observeEvent(input$a2,{
-#   new <- input$a2
-#   updateTextAreaInput(session, "a2LIMA", value  = new)
-# })
-# 
-# observeEvent(input$a2LIMA,{
-#   new <- input$a2LIMA
-#   updateTextAreaInput(session, "a2", value  = new)
-# })
-# 
-# observeEvent(input$a2,{
-#   new <- input$a2
-#   updateTextAreaInput(session, "a2UK", value  = new)
-# })
-# 
-# observeEvent(input$a2UK,{
-#   new <- input$a2UK
-#   updateTextAreaInput(session, "a2", value  = new)
-# })
-# 
-# ############ donor's typing HLA-B b1
-# observeEvent(input$b1,{
-#   new <- input$b1
-#   updateTextAreaInput(session, "b1ET", value  = new)
-# })
-# 
-# observeEvent(input$b1ET,{
-#   new <- input$b1ET
-#   updateTextAreaInput(session, "b1", value  = new)
-# })
-# 
-# observeEvent(input$b1,{
-#   new <- input$b1
-#   updateTextAreaInput(session, "b1LIMA", value  = new)
-# })
-# 
-# observeEvent(input$b1LIMA,{
-#   new <- input$b1LIMA
-#   updateTextAreaInput(session, "b1", value  = new)
-# })
-# 
-# observeEvent(input$b1,{
-#   new <- input$b1
-#   updateTextAreaInput(session, "b1UK", value  = new)
-# })
-# 
-# observeEvent(input$b1UK,{
-#   new <- input$b1UK
-#   updateTextAreaInput(session, "b1", value  = new)
-# })
-# 
-# ############ donor's typing HLA-B b2
-# observeEvent(input$b2,{
-#   new <- input$b2
-#   updateTextAreaInput(session, "b2ET", value  = new)
-# })
-# 
-# observeEvent(input$b2ET,{
-#   new <- input$b2ET
-#   updateTextAreaInput(session, "b2", value  = new)
-# })
-# 
-# observeEvent(input$b2,{
-#   new <- input$b2
-#   updateTextAreaInput(session, "b2LIMA", value  = new)
-# })
-# 
-# observeEvent(input$b2LIMA,{
-#   new <- input$b2LIMA
-#   updateTextAreaInput(session, "b2", value  = new)
-# })
-# 
-# observeEvent(input$b2,{
-#   new <- input$b2
-#   updateTextAreaInput(session, "b2UK", value  = new)
-# })
-# 
-# observeEvent(input$b2UK,{
-#   new <- input$b2UK
-#   updateTextAreaInput(session, "b2", value  = new)
-# })
-# 
-# ############ donor's typing HLA-DR dr1
-# observeEvent(input$dr1,{
-#   new <- input$dr1
-#   updateTextAreaInput(session, "dr1ET", value  = new)
-# })
-# 
-# observeEvent(input$dr1ET,{
-#   new <- input$dr1ET
-#   updateTextAreaInput(session, "dr1", value  = new)
-# })
-# 
-# observeEvent(input$dr1,{
-#   new <- input$dr1
-#   updateTextAreaInput(session, "dr1LIMA", value  = new)
-# })
-# 
-# observeEvent(input$dr1LIMA,{
-#   new <- input$dr1LIMA
-#   updateTextAreaInput(session, "dr1", value  = new)
-# })
-# 
-# observeEvent(input$dr1,{
-#   new <- input$dr1
-#   updateTextAreaInput(session, "dr1UK", value  = new)
-# })
-# 
-# observeEvent(input$dr1UK,{
-#   new <- input$dr1UK
-#   updateTextAreaInput(session, "dr1", value  = new)
-# })
-# 
-# ############ donor's typing HLA-DR dr2
-# observeEvent(input$dr2,{
-#   new <- input$dr2
-#   updateTextAreaInput(session, "dr2ET", value  = new)
-# })
-# 
-# observeEvent(input$dr2ET,{
-#   new <- input$dr2ET
-#   updateTextAreaInput(session, "dr2", value  = new)
-# })
-# 
-# observeEvent(input$dr2,{
-#   new <- input$dr2
-#   updateTextAreaInput(session, "dr2LIMA", value  = new)
-# })
-# 
-# observeEvent(input$dr2LIMA,{
-#   new <- input$dr2LIMA
-#   updateTextAreaInput(session, "dr2", value  = new)
-# })
-# 
-# observeEvent(input$dr2,{
-#   new <- input$dr2
-#   updateTextAreaInput(session, "dr2UK", value  = new)
-# })
-# 
-# observeEvent(input$dr2UK,{
-#   new <- input$dr2UK
-#   updateTextAreaInput(session, "dr2", value  = new)
-# })
+  ######################################################################################
+  ############ ligação entre inputs ############
+  ############
+  ############ donor's age
+  sync.age <- synchronicity::boost.mutex()
+  
+  observeEvent(input$dage,{
+    synchronicity::lock(sync.age)
+    
+    new <- input$dage
+    updateSliderInput(session, "dageET", value = new)
+    
+    synchronicity::unlock(sync.age)
+  })
+
+  observeEvent(input$dageET,{
+    synchronicity::lock(sync.age)
+    
+    new <- input$dageET
+    updateSliderInput(session, "dage", value = new)
+    
+    synchronicity::unlock(sync.age)
+  })
+
+  observeEvent(input$dage,{
+    synchronicity::lock(sync.age)
+    
+    new <- input$dage
+    updateSliderInput(session, "dageLIMA", value = new)
+    
+    synchronicity::unlock(sync.age)
+  })
+
+  observeEvent(input$dageLIMA,{
+    synchronicity::lock(sync.age)
+    
+    new <- input$dageLIMA
+    updateSliderInput(session, "dage", value = new)
+    
+    synchronicity::unlock(sync.age)
+  })
+
+  observeEvent(input$dage,{
+    synchronicity::lock(sync.age)
+    
+    new <- input$dage
+    updateSliderInput(session, "dageUK", value = new)
+    
+    synchronicity::unlock(sync.age)
+  })
+
+  observeEvent(input$dageUK,{
+    synchronicity::lock(sync.age)
+    
+    new <- input$dageUK
+    updateSliderInput(session, "dage", value = new)
+    
+    synchronicity::unlock(sync.age)
+  })
+
+  ############ donor's ABO
+  sync.abo = synchronicity::boost.mutex()
+  
+  observeEvent(input$dabo,{
+    synchronicity::lock(sync.abo)
+    
+    new <- input$dabo
+    updateRadioButtons(session, "daboET", selected = new)
+    
+    synchronicity::unlock(sync.abo)
+  })
+
+  observeEvent(input$daboET,{
+    synchronicity::lock(sync.abo)
+    
+    new <- input$daboET
+    updateRadioButtons(session, "dabo", selected = new)
+    
+    synchronicity::unlock(sync.abo)
+  })
+
+  observeEvent(input$dabo,{
+    synchronicity::lock(sync.abo)
+    
+    new <- input$dabo
+    updateRadioButtons(session, "daboLIMA", selected = new)
+    
+    synchronicity::unlock(sync.abo)
+  })
+
+  observeEvent(input$daboLIMA,{
+    synchronicity::lock(sync.abo)
+    
+    new <- input$daboLIMA
+    updateRadioButtons(session, "dabo", selected = new)
+    
+    synchronicity::unlock(sync.abo)
+  })
+
+  observeEvent(input$dabo,{
+    synchronicity::lock(sync.abo)
+    
+    new <- input$dabo
+    updateRadioButtons(session, "daboUK", selected = new)
+    
+    synchronicity::unlock(sync.abo)
+  })
+
+  observeEvent(input$daboUK,{
+    synchronicity::lock(sync.abo)
+    
+    new <- input$daboUK
+    updateRadioButtons(session, "dabo", selected = new)
+    
+    synchronicity::unlock(sync.abo)
+  })
+  
+############ donor's typing HLA-A a1
+  sync.hla.a1 = synchronicity::boost.mutex()
+  
+observeEvent(input$a1,{
+  synchronicity::lock(sync.hla.a1)
+  
+  new <- input$a1
+  updateTextAreaInput(session, "a1ET", value  = new)
+  
+  synchronicity::unlock(sync.hla.a1)
+})
+
+observeEvent(input$a1ET,{
+  synchronicity::lock(sync.hla.a1)
+  
+  new <- input$a1ET
+  updateTextAreaInput(session, "a1", value  = new)
+  
+  synchronicity::unlock(sync.hla.a1)
+})
+
+observeEvent(input$a1,{
+  synchronicity::lock(sync.hla.a1)
+  
+  new <- input$a1
+  updateTextAreaInput(session, "a1LIMA", value  = new)
+  
+  synchronicity::unlock(sync.hla.a1)
+})
+
+observeEvent(input$a1LIMA,{
+  synchronicity::lock(sync.hla.a1)
+  
+  new <- input$a1LIMA
+  updateTextAreaInput(session, "a1", value  = new)
+  
+  synchronicity::unlock(sync.hla.a1)
+})
+
+observeEvent(input$a1,{
+  synchronicity::lock(sync.hla.a1)
+  
+  new <- input$a1
+  updateTextAreaInput(session, "a1UK", value  = new)
+  
+  synchronicity::unlock(sync.hla.a1)
+})
+
+observeEvent(input$a1UK,{
+  synchronicity::lock(sync.hla.a1)
+  
+  new <- input$a1UK
+  updateTextAreaInput(session, "a1", value  = new)
+  
+  synchronicity::unlock(sync.hla.a1)
+})
+
+############ donor's typing HLA-A a2
+sync.hla.a2 = synchronicity::boost.mutex()
+
+observeEvent(input$a2,{
+  synchronicity::lock(sync.hla.a2)
+  
+  new <- input$a2
+  updateTextAreaInput(session, "a2ET", value  = new)
+  
+  synchronicity::unlock(sync.hla.a2)
+})
+
+observeEvent(input$a2ET,{
+  synchronicity::lock(sync.hla.a2)
+  
+  new <- input$a2ET
+  updateTextAreaInput(session, "a2", value  = new)
+  
+  synchronicity::unlock(sync.hla.a2)
+})
+
+observeEvent(input$a2,{
+  synchronicity::lock(sync.hla.a2)
+  
+  new <- input$a2
+  updateTextAreaInput(session, "a2LIMA", value  = new)
+  
+  synchronicity::unlock(sync.hla.a2)
+})
+
+observeEvent(input$a2LIMA,{
+  synchronicity::lock(sync.hla.a2)
+  
+  new <- input$a2LIMA
+  updateTextAreaInput(session, "a2", value  = new)
+  
+  synchronicity::unlock(sync.hla.a2)
+})
+
+observeEvent(input$a2,{
+  synchronicity::lock(sync.hla.a2)
+  
+  new <- input$a2
+  updateTextAreaInput(session, "a2UK", value  = new)
+  
+  synchronicity::unlock(sync.hla.a2)
+})
+
+observeEvent(input$a2UK,{
+  synchronicity::lock(sync.hla.a2)
+  
+  new <- input$a2UK
+  updateTextAreaInput(session, "a2", value  = new)
+  
+  synchronicity::unlock(sync.hla.a2)
+})
+
+############ donor's typing HLA-B b1
+sync.hla.b1 = synchronicity::boost.mutex()
+
+observeEvent(input$b1,{
+  synchronicity::lock(sync.hla.b1)
+  
+  new <- input$b1
+  updateTextAreaInput(session, "b1ET", value  = new)
+  
+  synchronicity::unlock(sync.hla.b1)
+})
+
+observeEvent(input$b1ET,{
+  synchronicity::lock(sync.hla.b1)
+  
+  new <- input$b1ET
+  updateTextAreaInput(session, "b1", value  = new)
+  
+  synchronicity::unlock(sync.hla.b1)
+})
+
+observeEvent(input$b1,{
+  synchronicity::lock(sync.hla.b1)
+  
+  new <- input$b1
+  updateTextAreaInput(session, "b1LIMA", value  = new)
+  
+  synchronicity::unlock(sync.hla.b1)
+})
+
+observeEvent(input$b1LIMA,{
+  synchronicity::lock(sync.hla.b1)
+  
+  new <- input$b1LIMA
+  updateTextAreaInput(session, "b1", value  = new)
+  
+  synchronicity::unlock(sync.hla.b1)
+})
+
+observeEvent(input$b1,{
+  synchronicity::lock(sync.hla.b1)
+  
+  new <- input$b1
+  updateTextAreaInput(session, "b1UK", value  = new)
+  
+  synchronicity::unlock(sync.hla.b1)
+})
+
+observeEvent(input$b1UK,{
+  synchronicity::lock(sync.hla.b1)
+  
+  new <- input$b1UK
+  updateTextAreaInput(session, "b1", value  = new)
+  
+  synchronicity::unlock(sync.hla.b1)
+})
+
+############ donor's typing HLA-B b2
+sync.hla.b2 = synchronicity::boost.mutex()
+
+observeEvent(input$b2,{
+  synchronicity::lock(sync.hla.b2)
+  
+  new <- input$b2
+  updateTextAreaInput(session, "b2ET", value  = new)
+  
+  synchronicity::unlock(sync.hla.b2)
+})
+
+observeEvent(input$b2ET,{
+  synchronicity::lock(sync.hla.b2)
+  
+  new <- input$b2ET
+  updateTextAreaInput(session, "b2", value  = new)
+  
+  synchronicity::unlock(sync.hla.b2)
+})
+
+observeEvent(input$b2,{
+  synchronicity::lock(sync.hla.b2)
+  
+  new <- input$b2
+  updateTextAreaInput(session, "b2LIMA", value  = new)
+  
+  synchronicity::unlock(sync.hla.b2)
+})
+
+observeEvent(input$b2LIMA,{
+  synchronicity::lock(sync.hla.b2)
+  
+  new <- input$b2LIMA
+  updateTextAreaInput(session, "b2", value  = new)
+  
+  synchronicity::unlock(sync.hla.b2)
+})
+
+observeEvent(input$b2,{
+  synchronicity::lock(sync.hla.b2)
+  
+  new <- input$b2
+  updateTextAreaInput(session, "b2UK", value  = new)
+  
+  synchronicity::unlock(sync.hla.b2)
+})
+
+observeEvent(input$b2UK,{
+  synchronicity::lock(sync.hla.b2)
+  
+  new <- input$b2UK
+  updateTextAreaInput(session, "b2", value  = new)
+  
+  synchronicity::unlock(sync.hla.b2)
+})
+
+############ donor's typing HLA-DR dr1
+sync.hla.dr1 = synchronicity::boost.mutex()
+
+observeEvent(input$dr1,{
+  synchronicity::lock(sync.hla.dr1)
+  
+  new <- input$dr1
+  updateTextAreaInput(session, "dr1ET", value  = new)
+  
+  synchronicity::unlock(sync.hla.dr1)
+})
+
+observeEvent(input$dr1ET,{
+  synchronicity::lock(sync.hla.dr1)
+  
+  new <- input$dr1ET
+  updateTextAreaInput(session, "dr1", value  = new)
+  
+  synchronicity::unlock(sync.hla.dr1)
+})
+
+observeEvent(input$dr1,{
+  synchronicity::lock(sync.hla.dr1)
+  
+  new <- input$dr1
+  updateTextAreaInput(session, "dr1LIMA", value  = new)
+  
+  synchronicity::unlock(sync.hla.dr1)
+})
+
+observeEvent(input$dr1LIMA,{
+  synchronicity::lock(sync.hla.dr1)
+  
+  new <- input$dr1LIMA
+  updateTextAreaInput(session, "dr1", value  = new)
+  
+  synchronicity::unlock(sync.hla.dr1)
+})
+
+observeEvent(input$dr1,{
+  synchronicity::lock(sync.hla.dr1)
+  
+  new <- input$dr1
+  updateTextAreaInput(session, "dr1UK", value  = new)
+  
+  synchronicity::unlock(sync.hla.dr1)
+})
+
+observeEvent(input$dr1UK,{
+  synchronicity::lock(sync.hla.dr1)
+  
+  new <- input$dr1UK
+  updateTextAreaInput(session, "dr1", value  = new)
+  
+  synchronicity::unlock(sync.hla.dr1)
+})
+
+############ donor's typing HLA-DR dr2
+sync.hla.dr2 = synchronicity::boost.mutex()
+
+observeEvent(input$dr2,{
+  synchronicity::lock(sync.hla.dr2)
+  
+  new <- input$dr2
+  updateTextAreaInput(session, "dr2ET", value  = new)
+  
+  synchronicity::unlock(sync.hla.dr2)
+})
+
+observeEvent(input$dr2ET,{
+  synchronicity::lock(sync.hla.dr2)
+  
+  new <- input$dr2ET
+  updateTextAreaInput(session, "dr2", value  = new)
+  
+  synchronicity::unlock(sync.hla.dr2)
+})
+
+observeEvent(input$dr2,{
+  synchronicity::lock(sync.hla.dr2)
+  
+  new <- input$dr2
+  updateTextAreaInput(session, "dr2LIMA", value  = new)
+  
+  synchronicity::unlock(sync.hla.dr2)
+})
+
+observeEvent(input$dr2LIMA,{
+  synchronicity::lock(sync.hla.dr2)
+  
+  new <- input$dr2LIMA
+  updateTextAreaInput(session, "dr2", value  = new)
+  
+  synchronicity::unlock(sync.hla.dr2)
+})
+
+observeEvent(input$dr2,{
+  synchronicity::lock(sync.hla.dr2)
+  
+  new <- input$dr2
+  updateTextAreaInput(session, "dr2UK", value  = new)
+  
+  synchronicity::unlock(sync.hla.dr2)
+})
+
+observeEvent(input$dr2UK,{
+  synchronicity::lock(sync.hla.dr2)
+  
+  new <- input$dr2UK
+  updateTextAreaInput(session, "dr2", value  = new)
+  
+  synchronicity::unlock(sync.hla.dr2)
+})
   
 }
 
