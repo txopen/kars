@@ -43,14 +43,14 @@ for(i in 1: length(all_pairs)){
 }
 
 result[!is.na(ID),] %>% 
-  rowwise() %>% 
-  mutate(txScore = histoc::txscore(recipient.age = age
+  dplyr::rowwise() %>% 
+  dplyr::mutate(txScore = histoc::txscore(recipient.age = age
                                    , recipient.dialysis = dialysis
                                    , donor.age = donor_age
                                    , mmHLA_A = mmA
                                    , mmHLA_B = mmB
                                    , mmHLA_DR = mmDR)$prob5y
-  ) %>% ungroup()
+  ) %>% dplyr::ungroup()
 
 }
 ############################################
@@ -98,7 +98,7 @@ function(input, output, session) {
       )
     
     data %>% 
-      mutate_at(vars(ID, A1,A2,B1,B2,DR1,DR2),as.character) 
+      dplyr::mutate_at(vars(ID, A1,A2,B1,B2,DR1,DR2),as.character) 
     
     
   })
@@ -130,8 +130,8 @@ function(input, output, session) {
     )
     
     data %>% 
-      mutate_at(vars(ID,A1,A2,B1,B2,DR1,DR2),as.character) %>% 
-      mutate_at(vars(age), as.numeric)
+      dplyr::mutate_at(vars(ID,A1,A2,B1,B2,DR1,DR2),as.character) %>% 
+      dplyr::mutate_at(vars(age), as.numeric)
     
   })
   
@@ -158,7 +158,7 @@ function(input, output, session) {
     )
     
     data %>% 
-      mutate_at(vars(ID), as.character)
+      dplyr::mutate_at(vars(ID), as.character)
     
   })
   
@@ -215,14 +215,14 @@ function(input, output, session) {
                   check.validity = FALSE)
       
       dt <- dt %>%
-        rowwise() %>% 
-        mutate(txScore = histoc::txscore(recipient.age = age
+        dplyr::rowwise() %>% 
+        dplyr::mutate(txScore = histoc::txscore(recipient.age = age
                                  , recipient.dialysis = dialysis
                                  , donor.age = donor_age
                                  , mmHLA_A = mmA
                                  , mmHLA_B = mmB
                                  , mmHLA_DR = mmDR)$prob5y
-               ) %>% ungroup()
+               ) %>% dplyr::ungroup()
 
     datatable(dt, options = list(pageLength = 5, dom = 'tip'))
   })
@@ -250,7 +250,7 @@ function(input, output, session) {
         }
 
     if (input$dataInput == 1) {candidates<-histoc::candidates} else {candidates<-datasetCands() %>% 
-      select(ID, bg,A1,A2,B1,B2,DR1,DR2,age,dialysis,cPRA)}
+      dplyr::select(ID, bg,A1,A2,B1,B2,DR1,DR2,age,dialysis,cPRA)}
     if (input$dataInput == 1) {abs.d<-histoc::cabs} else {abs.d<-datasetAbs()}
     if (input$dataInput == 1) {donors<-histoc::donors} else {donors<-datasetDonors()}
     
@@ -306,22 +306,22 @@ function(input, output, session) {
   
   ## Resume dataset results from PT algorithm
   output$resumePT <-
-    render_gt({
+    gt::render_gt({
       
       validate(
         need(compute_resm() != "", "Results will be presented after the run!")
       )
       
       tabsum<-compute_resm() %>% 
-        select(bg, age, dialysis, cPRA, HI, mmHLA, txScore) %>% 
-        rename(`Blood group` = bg,
+        dplyr::select(bg, age, dialysis, cPRA, HI, mmHLA, txScore) %>% 
+        dplyr::rename(`Blood group` = bg,
                `receptores' age (years)` = age,
                `time on dialysis (months)` = dialysis,
                `Hiper Immunized` = HI,
                `HLA miss matchs` = mmHLA,
                TxScore = txScore)
       
-      tbl_summary(tabsum) %>% as_gt()
+      gtsummary::tbl_summary(tabsum) %>% gtsummary::as_gt()
     })
 
   
@@ -378,14 +378,14 @@ function(input, output, session) {
            n = 10)
 
     dt <- dt %>%
-      rowwise() %>% 
-      mutate(txScore = histoc::txscore(recipient.age = age
+      dplyr::rowwise() %>% 
+      dplyr::mutate(txScore = histoc::txscore(recipient.age = age
                                        , recipient.dialysis = dialysis
                                        , donor.age = donor_age
                                        , mmHLA_A = mmA
                                        , mmHLA_B = mmB
                                        , mmHLA_DR = mmDR)$prob5y
-      ) %>% ungroup()
+      ) %>% dplyr::ungroup()
     
     datatable(dt, options = list(pageLength = 5, dom = 'tip'))
   }) 
@@ -481,22 +481,22 @@ function(input, output, session) {
   
   ## Resume dataset results from ET algorithm
   output$resumeET <-
-    render_gt({
+    gt::render_gt({
       
       validate(
         need(compute_resmET() != "", "Results will be presented after the run!")
       )
       
       tabsum<-compute_resmET() %>% 
-        select(bg, age, dialysis, cPRA, HI, mmHLA, txScore) %>% 
-        rename(`Blood group` = bg,
+        dplyr::select(bg, age, dialysis, cPRA, HI, mmHLA, txScore) %>% 
+        dplyr::rename(`Blood group` = bg,
                `receptores' age (years)` = age,
                `time on dialysis (months)` = dialysis,
                `Hiper Immunized` = HI,
                `HLA miss matchs` = mmHLA,
                TxScore = txScore)
       
-      tbl_summary(tabsum) %>% as_gt()
+      gtsummary::tbl_summary(tabsum) %>% gtsummary::as_gt()
     })
   
   
@@ -539,14 +539,14 @@ function(input, output, session) {
                    check.validity = FALSE)
     
     dt <- dt %>%
-      rowwise() %>% 
-      mutate(txScore = histoc::txscore(recipient.age = age
+      dplyr::rowwise() %>% 
+      dplyr::mutate(txScore = histoc::txscore(recipient.age = age
                                        , recipient.dialysis = dialysis
                                        , donor.age = donor_age
                                        , mmHLA_A = mmA
                                        , mmHLA_B = mmB
                                        , mmHLA_DR = mmDR)$prob5y
-      ) %>% ungroup()
+      ) %>% dplyr::ungroup()
     
     datatable(dt, options = list(pageLength = 5, dom = 'tip'))
     
@@ -617,22 +617,22 @@ function(input, output, session) {
   
   ## Resume dataset results from LIMA algorithm
   output$resumeLIMA <-
-    render_gt({
+    gt::render_gt({
       
       validate(
         need(compute_resmLIMA() != "", "Results will be presented after the run!")
       )
       
       tabsum<-compute_resmLIMA() %>% 
-        select(bg, age, dialysis, cPRA, HI, mmHLA, txScore) %>% 
-        rename(`Blood group` = bg,
+        dplyr::select(bg, age, dialysis, cPRA, HI, mmHLA, txScore) %>% 
+        dplyr::rename(`Blood group` = bg,
                `receptores' age (years)` = age,
                `time on dialysis (months)` = dialysis,
                `Hiper Immunized` = HI,
                `HLA miss matchs` = mmHLA,
                TxScore = txScore)
       
-      tbl_summary(tabsum) %>% as_gt()
+      gtsummary::tbl_summary(tabsum) %>% gtsummary::as_gt()
     })
   
   ############################
@@ -750,14 +750,14 @@ function(input, output, session) {
                   )
 
     dt <- dt %>%
-      rowwise() %>% 
-      mutate(txScore = histoc::txscore(recipient.age = age
+      dplyr::rowwise() %>% 
+      dplyr::mutate(txScore = histoc::txscore(recipient.age = age
                                        , recipient.dialysis = dialysis
                                        , donor.age = donor_age
                                        , mmHLA_A = mmA
                                        , mmHLA_B = mmB
                                        , mmHLA_DR = mmDR)$prob5y
-      ) %>% ungroup()
+      ) %>% dplyr::ungroup()
 
     datatable(dt, options = list(pageLength = 5, dom = 'tip'))
 
@@ -782,7 +782,7 @@ function(input, output, session) {
       if (input$dataInput == 1) {candidates<-histoc::candidates.uk} else {candidates<-datasetCands()}
       if (input$dataInput == 1) {abs.d<-histoc::cabs} else {abs.d<-datasetAbs()}
       if (input$dataInput == 1) {donors<-histoc::donors.uk %>%
-        select(ID, bg, A1, A2, B1, B2, DR1, DR2, age, DRI)} else {donors<-datasetDonors()}
+        dplyr::select(ID, bg, A1, A2, B1, B2, DR1, DR2, age, DRI)} else {donors<-datasetDonors()}
 
 
       validate(
@@ -859,22 +859,22 @@ function(input, output, session) {
 
   ## Resume dataset results from UK algorithm
   output$resumeUK <-
-    render_gt({
+    gt::render_gt({
 
       validate(
         need(compute_resmUK() != "", "Results will be presented after the run!")
       )
 
       tabsum<-compute_resmUK() %>%
-        select(bg, age, dialysis, cPRA, Tier, mmHLA, txScore) %>%
-        rename(`Blood group` = bg,
+        dplyr::select(bg, age, dialysis, cPRA, Tier, mmHLA, txScore) %>%
+        dplyr::rename(`Blood group` = bg,
                `receptores' age (years)` = age,
                `time on dialysis (months)` = dialysis,
                `Tier` = Tier,
                `HLA miss matchs` = mmHLA,
                TxScore = txScore)
 
-      tbl_summary(tabsum) %>% as_gt()
+      gtsummary::tbl_summary(tabsum) %>% gtsummary::as_gt()
     })
   
 #   ######################################################################################
