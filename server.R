@@ -8,8 +8,7 @@
 # source("scripts/UK_fxs.R")
 
 library(DT)
-library(tidyverse)
-library(openxlsx)
+library(dplyr)
 library(gtsummary)
 
 library(histoc)
@@ -43,14 +42,14 @@ for(i in 1: length(all_pairs)){
 }
 
 result[!is.na(ID),] %>% 
-  rowwise() %>% 
-  mutate(txScore = histoc::txscore(recipient.age = age
+  dplyr::rowwise() %>% 
+  dplyr::mutate(txScore = histoc::txscore(recipient.age = age
                                    , recipient.dialysis = dialysis
                                    , donor.age = donor_age
                                    , mmHLA_A = mmA
                                    , mmHLA_B = mmB
                                    , mmHLA_DR = mmDR)$prob5y
-  ) %>% ungroup()
+  ) %>% dplyr::ungroup()
 
 }
 ############################################
@@ -98,7 +97,7 @@ function(input, output, session) {
       )
     
     data %>% 
-      mutate_at(vars(ID, A1,A2,B1,B2,DR1,DR2),as.character) 
+      dplyr::mutate_at(vars(ID, A1,A2,B1,B2,DR1,DR2),as.character) 
     
     
   })
@@ -130,8 +129,8 @@ function(input, output, session) {
     )
     
     data %>% 
-      mutate_at(vars(ID,A1,A2,B1,B2,DR1,DR2),as.character) %>% 
-      mutate_at(vars(age), as.numeric)
+      dplyr::mutate_at(vars(ID,A1,A2,B1,B2,DR1,DR2),as.character) %>% 
+      dplyr::mutate_at(vars(age), as.numeric)
     
   })
   
@@ -158,7 +157,7 @@ function(input, output, session) {
     )
     
     data %>% 
-      mutate_at(vars(ID), as.character)
+      dplyr::mutate_at(vars(ID), as.character)
     
   })
   
@@ -215,14 +214,14 @@ function(input, output, session) {
                   check.validity = FALSE)
       
       dt <- dt %>%
-        rowwise() %>% 
-        mutate(txScore = histoc::txscore(recipient.age = age
+        dplyr::rowwise() %>% 
+        dplyr::mutate(txScore = histoc::txscore(recipient.age = age
                                  , recipient.dialysis = dialysis
                                  , donor.age = donor_age
                                  , mmHLA_A = mmA
                                  , mmHLA_B = mmB
                                  , mmHLA_DR = mmDR)$prob5y
-               ) %>% ungroup()
+               ) %>% dplyr::ungroup()
 
     datatable(dt, options = list(pageLength = 5, dom = 'tip'))
   })
@@ -313,15 +312,15 @@ function(input, output, session) {
       )
       
       tabsum<-compute_resm() %>% 
-        select(bg, age, dialysis, cPRA, HI, mmHLA, txScore) %>% 
-        rename(`Blood group` = bg,
+        dplyr::select(bg, age, dialysis, cPRA, HI, mmHLA, txScore) %>% 
+        dplyr::rename(`Blood group` = bg,
                `receptores' age (years)` = age,
                `time on dialysis (months)` = dialysis,
                `Hiper Immunized` = HI,
                `HLA miss matchs` = mmHLA,
                TxScore = txScore)
       
-      tbl_summary(tabsum) %>% as_gt()
+      gtsummary::tbl_summary(tabsum) %>% gt_summary::as_gt()
     })
 
   
@@ -378,14 +377,14 @@ function(input, output, session) {
            n = 10)
 
     dt <- dt %>%
-      rowwise() %>% 
-      mutate(txScore = histoc::txscore(recipient.age = age
+      dplyr::rowwise() %>% 
+      dplyr::mutate(txScore = histoc::txscore(recipient.age = age
                                        , recipient.dialysis = dialysis
                                        , donor.age = donor_age
                                        , mmHLA_A = mmA
                                        , mmHLA_B = mmB
                                        , mmHLA_DR = mmDR)$prob5y
-      ) %>% ungroup()
+      ) %>% dplyr::ungroup()
     
     datatable(dt, options = list(pageLength = 5, dom = 'tip'))
   }) 
@@ -488,15 +487,15 @@ function(input, output, session) {
       )
       
       tabsum<-compute_resmET() %>% 
-        select(bg, age, dialysis, cPRA, HI, mmHLA, txScore) %>% 
-        rename(`Blood group` = bg,
+        dplyr::select(bg, age, dialysis, cPRA, HI, mmHLA, txScore) %>% 
+        dplyr::rename(`Blood group` = bg,
                `receptores' age (years)` = age,
                `time on dialysis (months)` = dialysis,
                `Hiper Immunized` = HI,
                `HLA miss matchs` = mmHLA,
                TxScore = txScore)
       
-      tbl_summary(tabsum) %>% as_gt()
+      gtsummary::tbl_summary(tabsum) %>% gtsummary::as_gt()
     })
   
   
@@ -539,14 +538,14 @@ function(input, output, session) {
                    check.validity = FALSE)
     
     dt <- dt %>%
-      rowwise() %>% 
-      mutate(txScore = histoc::txscore(recipient.age = age
+      dplyr::rowwise() %>% 
+      dplyr::mutate(txScore = histoc::txscore(recipient.age = age
                                        , recipient.dialysis = dialysis
                                        , donor.age = donor_age
                                        , mmHLA_A = mmA
                                        , mmHLA_B = mmB
                                        , mmHLA_DR = mmDR)$prob5y
-      ) %>% ungroup()
+      ) %>% dplyr::ungroup()
     
     datatable(dt, options = list(pageLength = 5, dom = 'tip'))
     
@@ -624,15 +623,15 @@ function(input, output, session) {
       )
       
       tabsum<-compute_resmLIMA() %>% 
-        select(bg, age, dialysis, cPRA, HI, mmHLA, txScore) %>% 
-        rename(`Blood group` = bg,
+        dplyr::select(bg, age, dialysis, cPRA, HI, mmHLA, txScore) %>% 
+        dplyr::rename(`Blood group` = bg,
                `receptores' age (years)` = age,
                `time on dialysis (months)` = dialysis,
                `Hiper Immunized` = HI,
                `HLA miss matchs` = mmHLA,
                TxScore = txScore)
       
-      tbl_summary(tabsum) %>% as_gt()
+      gtsummary::tbl_summary(tabsum) %>% gt_summary::as_gt()
     })
   
   ############################
@@ -750,14 +749,14 @@ function(input, output, session) {
                   )
 
     dt <- dt %>%
-      rowwise() %>% 
-      mutate(txScore = histoc::txscore(recipient.age = age
+      dplyr::rowwise() %>% 
+      dplyr::mutate(txScore = histoc::txscore(recipient.age = age
                                        , recipient.dialysis = dialysis
                                        , donor.age = donor_age
                                        , mmHLA_A = mmA
                                        , mmHLA_B = mmB
                                        , mmHLA_DR = mmDR)$prob5y
-      ) %>% ungroup()
+      ) %>% dplyr::ungroup()
 
     datatable(dt, options = list(pageLength = 5, dom = 'tip'))
 
@@ -866,15 +865,15 @@ function(input, output, session) {
       )
 
       tabsum<-compute_resmUK() %>%
-        select(bg, age, dialysis, cPRA, Tier, mmHLA, txScore) %>%
-        rename(`Blood group` = bg,
+        dplyr::select(bg, age, dialysis, cPRA, Tier, mmHLA, txScore) %>%
+        dplyr::rename(`Blood group` = bg,
                `receptores' age (years)` = age,
                `time on dialysis (months)` = dialysis,
                `Tier` = Tier,
                `HLA miss matchs` = mmHLA,
                TxScore = txScore)
 
-      tbl_summary(tabsum) %>% as_gt()
+      gtsummary::tbl_summary(tabsum) %>% gt_summary::as_gt()
     })
   
 #   ######################################################################################
