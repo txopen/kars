@@ -8,8 +8,7 @@
 # source("scripts/UK_fxs.R")
 
 library(DT)
-library(tidyverse)
-library(openxlsx)
+library(dplyr)
 library(gtsummary)
 
 library(histoc)
@@ -250,7 +249,7 @@ function(input, output, session) {
         }
 
     if (input$dataInput == 1) {candidates<-histoc::candidates} else {candidates<-datasetCands() %>% 
-      dplyr::select(ID, bg,A1,A2,B1,B2,DR1,DR2,age,dialysis,cPRA)}
+      select(ID, bg,A1,A2,B1,B2,DR1,DR2,age,dialysis,cPRA)}
     if (input$dataInput == 1) {abs.d<-histoc::cabs} else {abs.d<-datasetAbs()}
     if (input$dataInput == 1) {donors<-histoc::donors} else {donors<-datasetDonors()}
     
@@ -306,7 +305,7 @@ function(input, output, session) {
   
   ## Resume dataset results from PT algorithm
   output$resumePT <-
-    gt::render_gt({
+    render_gt({
       
       validate(
         need(compute_resm() != "", "Results will be presented after the run!")
@@ -321,7 +320,7 @@ function(input, output, session) {
                `HLA miss matchs` = mmHLA,
                TxScore = txScore)
       
-      gtsummary::tbl_summary(tabsum) %>% gtsummary::as_gt()
+      gtsummary::tbl_summary(tabsum) %>% gt_summary::as_gt()
     })
 
   
@@ -481,7 +480,7 @@ function(input, output, session) {
   
   ## Resume dataset results from ET algorithm
   output$resumeET <-
-    gt::render_gt({
+    render_gt({
       
       validate(
         need(compute_resmET() != "", "Results will be presented after the run!")
@@ -617,7 +616,7 @@ function(input, output, session) {
   
   ## Resume dataset results from LIMA algorithm
   output$resumeLIMA <-
-    gt::render_gt({
+    render_gt({
       
       validate(
         need(compute_resmLIMA() != "", "Results will be presented after the run!")
@@ -632,7 +631,7 @@ function(input, output, session) {
                `HLA miss matchs` = mmHLA,
                TxScore = txScore)
       
-      gtsummary::tbl_summary(tabsum) %>% gtsummary::as_gt()
+      gtsummary::tbl_summary(tabsum) %>% gt_summary::as_gt()
     })
   
   ############################
@@ -782,7 +781,7 @@ function(input, output, session) {
       if (input$dataInput == 1) {candidates<-histoc::candidates.uk} else {candidates<-datasetCands()}
       if (input$dataInput == 1) {abs.d<-histoc::cabs} else {abs.d<-datasetAbs()}
       if (input$dataInput == 1) {donors<-histoc::donors.uk %>%
-        dplyr::select(ID, bg, A1, A2, B1, B2, DR1, DR2, age, DRI)} else {donors<-datasetDonors()}
+        select(ID, bg, A1, A2, B1, B2, DR1, DR2, age, DRI)} else {donors<-datasetDonors()}
 
 
       validate(
@@ -859,7 +858,7 @@ function(input, output, session) {
 
   ## Resume dataset results from UK algorithm
   output$resumeUK <-
-    gt::render_gt({
+    render_gt({
 
       validate(
         need(compute_resmUK() != "", "Results will be presented after the run!")
@@ -874,7 +873,7 @@ function(input, output, session) {
                `HLA miss matchs` = mmHLA,
                TxScore = txScore)
 
-      gtsummary::tbl_summary(tabsum) %>% gtsummary::as_gt()
+      gtsummary::tbl_summary(tabsum) %>% gt_summary::as_gt()
     })
   
 #   ######################################################################################
