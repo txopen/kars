@@ -320,7 +320,7 @@ function(input, output, session) {
                `HLA miss matchs` = mmHLA,
                TxScore = txScore)
       
-      gtsummary::tbl_summary(tabsum) %>% gt_summary::as_gt()
+      gtsummary::tbl_summary(tabsum) %>% gtsummary::as_gt()
     })
 
   
@@ -631,7 +631,7 @@ function(input, output, session) {
                `HLA miss matchs` = mmHLA,
                TxScore = txScore)
       
-      gtsummary::tbl_summary(tabsum) %>% gt_summary::as_gt()
+      gtsummary::tbl_summary(tabsum) %>% gtsummary::as_gt()
     })
   
   ############################
@@ -873,7 +873,7 @@ function(input, output, session) {
                `HLA miss matchs` = mmHLA,
                TxScore = txScore)
 
-      gtsummary::tbl_summary(tabsum) %>% gt_summary::as_gt()
+      gtsummary::tbl_summary(tabsum) %>% gtsummary::as_gt()
     })
   
 #   ######################################################################################
