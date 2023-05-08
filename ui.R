@@ -18,7 +18,7 @@ fluidPage(theme = shinytheme("spacelab"),
           a(href="https://txor.netlify.app/", target="_blank",
             h1("Transplants Open Registry (TxOR)")),
           
-          navbarPage("KARS (version 1.0.0)",
+          navbarPage("KARS (version 1.1.0)",
                      tabPanel("Home", icon = icon("home"),
                               sidebarPanel(
                                 HTML('<p><img src="kidneys2.jpg" width=300 height=300></p>')
@@ -33,8 +33,12 @@ fluidPage(theme = shinytheme("spacelab"),
                                         HTML('<a href="mailto:bioestatisticas@gmail.com">Just e-mail me!</a>'),
                                         br(),
                                         br(),
+                                        h4("How to cite: "),
+                                        HTML('<a href="https://www.sciencedirect.com/science/article/pii/S0966327422000521?dgcid=author">Bruno A. Lima, Teresa S. Henriques, Helena Alves. Kidney allocation rules simulator. Transplant Immunology 2022; Volume 72, 101578</a>'),
+                                        br(),
                                         h4("Disclaimer: "),
-                                        h5("This application is intended for research purposes only, not for clinical or commercial use. It is a non-profit service to the scientific community, provided on an 'AS-IS' basis without any warranty, expressed or implied. The authors can not be held liable in any way for the service provided here.")
+                                        h5("This application is intended for research purposes only, not for clinical or commercial use. It is a non-profit service to the scientific community, provided on an 'AS-IS' basis without any warranty, expressed or implied. The authors can not be held liable in any way for the service provided here."),
+                                        HTML('<a href="https://txor.netlify.app/"><center><img src="txor.JPG" /></center></a>')
                                         )
                               ),
                      tabPanel("Upload data", icon = icon("database"),
@@ -689,13 +693,13 @@ fluidPage(theme = shinytheme("spacelab"),
                               h5("Kidney Allocation Rules Simulator (KARS) application allows testing different kidney transplant allocation systems 
                                  with different donors and transplant candidates’ datasets."),
                               h5("In this application it is possible to simulate allocation rules implemented in Portugal, 
-                                 in countries within Eurtotransplant, in the United Kingdom,  
-                                 and a system previously suggested by Lima et al. 
-                                 Also, KARS application allows changing the original punctuation used by the mentioned allocation systems, 
+                                 in countries within Eurtotransplant, in the United Kingdom,
+                                 a system previously suggested by Lima et al and a proposed system based on a Equity Matrix (EQM). 
+                                 Also, KARS application allows changing the original arguments' values used by the mentioned allocation systems, 
                                  in order to simulate how these changes are translated in the type of candidates selected for transplantation."), 
                               h5("As inputs, this application has three data files: a file with transplant candidates’ information, a file with candidates’ anti-HLA antibodies, and a file with donors’ characteristics. 
                                  As output it is returned a file with donor-recipient pairs selected according to the kidney allocation system simulated."),
-                              h5("For each one of the models (Portugal, EuroTransplant, Lima et al, UK transplant), 
+                              h5("For each one of the models (Portugal, EuroTransplant, Lima et al, UK transplant and EQM), 
                                  transplant candidates are excluded considering ABO compatibility and Virtual Crossmatch and 
                                  the remaining are ordered for each donor according to the model’s rules."),
                               h5("For the option ‘One donor’, top 10 candidates are displayed regarding the donor characteristics; 
@@ -712,8 +716,12 @@ fluidPage(theme = shinytheme("spacelab"),
                               h5("When seeking for waste reduction while ensuring a fair distribution of organs from deceased donors, 
                                  the definition of rules for the selection of donor-recipient pairs in renal transplantation must be based on evidences supported by data.  
                                  With this purpose, we also need to be able to predict transplant outcomes to define the best allocation rules."),
+                              HTML("<h5>This application was implemented based on the R package <a href='https://joss.theoj.org/papers/10.21105/joss.04807'>{histoc}</a> available from <a href='https://github.com/txopen/histoc'>here</a>.</h5>"),
+                               br(),
+                              a(href="https://kars-manual.netlify.app", "KARS app's users' manual is available from here"),
                               br(),
-                              a(href="https://kars-manual.netlify.app", "KARS app's users' manual is available from here")
+                              
+                              HTML('<a href="https://txor.netlify.app/"><center><img src="txor.JPG" /></center></a>')
                      )
           )
 )
