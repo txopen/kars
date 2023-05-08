@@ -319,10 +319,10 @@ fluidPage(theme = shinytheme("spacelab"),
                                 a("Define values for Lima's algorithm:"),
                                 wellPanel(
                                   checkboxInput("isoLIMA", "ABO identical", TRUE),
-                                  numericInput("td3q", "3rd quantile time on dialysis", 62,
-                                               1, 99, 1),
-                                  numericInput("td2q", "median time on dialysis", 48,
-                                               1, 99, 1),
+                                  numericInput("td3q", "3rd quantile time on dialysis", 75,
+                                               1, 199, 1),
+                                  numericInput("td2q", "median time on dialysis", 50,
+                                               1, 199, 1),
                                   actionButton("reset_inputLIMA", "Reset inputs")
                                   
                                 ),
@@ -565,6 +565,108 @@ fluidPage(theme = shinytheme("spacelab"),
                                   fluidRow(hr(),
                                            h4("Resumed results from UK Transplant:"),
                                            gt_output(outputId = "resumeUK") %>% withSpinner()
+                                  )
+                                )
+                              )
+                     ),
+                     
+                     tabPanel("EQM", icon = icon("table"), # file-medical-alt
+                              sidebarPanel(
+                                shinyjs::useShinyjs(),
+                                id = "side-panelEQM",
+                                a("Define values for EQM's algorithm:"),
+                                wellPanel(
+                                  checkboxInput("isoEQM", "ABO identical", TRUE),
+                                  
+                                  sliderInput("ratio.utilEQM", "Decreasing rate for the utility criterion",
+                                              min = 0.1, max = 0.5,
+                                              value = 0.1, step = 0.1, sep = ""),
+                                  sliderInput("ratio.justEQM", "Decreasing rate for the justice criterion",
+                                              min = 0.1, max = 0.5,
+                                              value = 0.1, step = 0.1, sep = ""),
+                                  
+                                  numericInput("td3q_eqm", "3rd quantile time on dialysis", 75,
+                                               1, 199, 1),
+                                  numericInput("td2q_eqm", "median time on dialysis", 50,
+                                               1, 199, 1),
+                                  
+                                  h5("Define alocation priorities:"),
+                                  checkboxInput("spEQM", "Senior Program ", FALSE),
+                                  checkboxInput("amEQM", "Acceptable Mismatch Program", FALSE),
+                                  checkboxInput("mm000EQM", "HLA mm 000 priority", FALSE),
+                                  
+                                  actionButton("reset_inputEQM", "Reset inputs")
+                                  
+                                  ),
+                                
+                                plotOutput("uj_matx_plot"),
+                                
+                                a(href="", 
+                                  "paper in progress"),
+                              ),
+                              
+                              mainPanel(
+                                radioButtons("selectionTypeEQM", "", 
+                                             list("One donor"= 1, 
+                                                  "Multiple donors"= 2), selected = 1,
+                                             inline = TRUE),
+                                
+                                conditionalPanel(
+                                  condition = "input.selectionTypeEQM == '1'",
+                                  h4("Options for one donor"),
+                                  fluidRow(sliderInput("dageEQM", "Select donor's age:",
+                                                       min = 18, max = 80,
+                                                       value = 60, step = 1, sep = "")
+                                  ),
+                                  fluidRow(column(4,
+                                                  radioButtons("daboEQM", "Select donor's blood group:",
+                                                               c("A", "B", "AB", "O"),
+                                                               inline = TRUE))
+                                  ),
+                                  fluidRow(h5("Input HLA typing"),
+                                           column(2,
+                                                  textAreaInput("a1EQM", "A1", 1,
+                                                                width = 50,
+                                                                height = 40)),
+                                           column(2,
+                                                  textAreaInput("a2EQM", "A2", 2,
+                                                                width = 50,
+                                                                height = 40)),
+                                           column(2,
+                                                  textAreaInput("b1EQM", "B1", 7,
+                                                                width = 50,
+                                                                height = 40)),
+                                           column(2,
+                                                  textAreaInput("b2EQM", "B2", 8,
+                                                                width = 50,
+                                                                height = 40)),
+                                           column(2,
+                                                  textAreaInput("dr1EQM", "DR1", 1,
+                                                                width = 50,
+                                                                height = 40)),
+                                           column(2,
+                                                  textAreaInput("dr2EQM", "DR2", 3,
+                                                                width = 50,
+                                                                height = 40))
+                                  ),
+                                  fluidRow(
+                                    h4("top 10 selected candidates for this specific donor"),
+                                    dataTableOutput(outputId = "res1EQM")
+                                  )
+                                ),
+                                conditionalPanel(
+                                  condition = "input.selectionTypeEQM == '2'",
+                                  add_busy_spinner(spin = "fading-circle", position = "full-page"),
+                                  actionButton("GoEQM","Select your options and run it!!"),
+                                  h6("(it can take several seconds, be patient!)"),
+                                  h4("Selected donor-recipient pairs for transplantation:"),
+                                  fluidRow(dataTableOutput(outputId = "resmEQM"),
+                                           br(),
+                                           downloadButton("downloadDataEQM", "Download")
+                                  ),
+                                  fluidRow(hr(),
+                                           h4("Resumed results from EQM's algorithm:"),
+                                           gt_output(outputId = "resumeEQM") %>% withSpinner()
                                   )
                                 )
                               )

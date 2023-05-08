@@ -9,6 +9,7 @@
 
 library(DT)
 library(dplyr)
+library(magrittr)
 library(gtsummary)
 
 library(histoc)
@@ -51,6 +52,47 @@ result[!is.na(ID),] %>%
                                    , mmHLA_DR = mmDR)$prob5y
   ) %>% dplyr::ungroup()
 
+}
+
+## function for Utility / Justice matrix
+# matrix columns (cos) and rows (ros)
+co <- c('AgeDiff < 9 \n mmHLA 0-2',
+        'AgeDiff < 9 \n mmHLA 3-4',
+        'AgeDiff >= 9 \n mmHLA 0-2',
+        'AgeDiff < 9 \n mmHLA 5-6',
+        'AgeDiff >= 9 \n mmHLA 3-4',
+        'AgeDiff >= 9 \n mmHLA 5-6')
+ro <- c('TmDial > q3 \n cPRA >50',
+        'TmDial > q3 \n cPRA <=50',
+        'TmDial > q2 \n cPRA >50',
+        'TmDial > q2 \n cPRA <=50',
+        'TmDial <= q2 \n cPRA >50',
+        'TmDial <= q2 \n cPRA <=50')
+exg <- expand.grid(co,ro) %>% 
+  rename(cos = Var1,
+         ros = Var2)
+# data
+mtx_data_uj <- function(u = 0.1, j = 0.1){
+  exg %>% 
+    mutate(value = c(t(histoc::uj_matx(ratio.util = u, ratio.just = j))))
+}
+
+# plot
+gg_matx <- function(data){
+  ggplot2::ggplot(data,
+                  ggplot2::aes(x=cos, y=ros, col = value, fill = value, label = value)) +
+    ggplot2::geom_tile(ggplot2::aes(width=.90, height=.90)) +
+    ggplot2::geom_text(col = "black") +
+    ggplot2::theme_minimal() +
+    ggplot2::labs(x = 'Utility', y = 'Justice') +
+    ggplot2::scale_x_discrete(position = "top") +
+    ggplot2::scale_y_discrete(limits = rev(unique(sort(exg$ros)))) +
+    viridis::scale_fill_viridis(alpha = 0.7, option = 'G') +
+    # scale_fill_gradient2(low = "red", #mid = "yellow",
+    #                      high = "green") +
+    # scale_color_gradient2(low = "red", #mid = "yellow",
+    #                       high = "green")
+    ggplot2::theme(legend.position = 'none')
 }
 ############################################
 
@@ -661,9 +703,9 @@ function(input, output, session) {
     input$mUK * (1 + ((1:9) / input$nUK)^input$oUK)
   })
   output$matchability<-renderPlot({
-    ggplot(data.frame(Points = pointsM(), MatchScore = 1:9)) +
-      geom_line(aes(MatchScore,Points)) + 
-      ggtitle("Points scored illustration")
+    ggplot2::ggplot(data.frame(Points = pointsM(), MatchScore = 1:9)) +
+      ggplot2::geom_line(ggplot2::aes(MatchScore,Points)) + 
+      ggplot2::ggtitle("Points scored illustration")
   })
   
   #### to reset UK sidebarpanel
@@ -879,234 +921,461 @@ function(input, output, session) {
       gtsummary::tbl_summary(tabsum) %>% gtsummary::as_gt()
     })
   
+  ############################
+  ### EQM algorithm
+  ############################
+  
+  # Utility/Justice matrix - illustrative plot
+  ratio.u<-reactive({
+    input$ratio.utilEQM
+  })
+  
+  ratio.j<-reactive({
+    input$ratio.justEQM
+  })
+  
+  output$uj_matx_plot<-renderPlot({
+    
+    matx_data <- mtx_data_uj(u = ratio.u(), j = ratio.j())
+    gg_matx(data = matx_data)
+  
+    })
+  
+  #### to reset EQM sidebarpanel
+  observeEvent(input$reset_inputEQM, {
+    shinyjs::reset("side-panelEQM")
+  })
+  
+  
+  output$res1EQM <- renderDataTable({
+    
+    if (input$dataInput == 1) {candidates<-histoc::candidates} else {candidates<-datasetCands()}
+    if (input$dataInput == 1) {abs.d<-histoc::cabs} else {abs.d<-datasetAbs()}
+    
+    validate(
+      need(candidates != "", "Please select a candidates data set!")
+    )
+    
+    validate(
+      need(abs.d != "", "Please select candidates' HLA antibodies data set!")
+    )
+    
+    dt<-histoc::eqm(iso = input$isoEQM, # isogroup compatibility
+                     dABO = input$daboEQM, # donor's blood group
+                     dA = c(input$a1EQM,input$a2EQM),
+                     dB = c(input$b1EQM,input$b2EQM),
+                     dDR = c(input$dr1EQM,input$dr2EQM),
+                     donor.age = input$dageEQM, # donor's age
+                     data = candidates, # data file with candidates
+                     df.abs = abs.d, # candidates' HLA antibodies
+                     n = 10,
+                    uj_matx(max.val = 100, ratio.util = input$ratio.utilEQM, ratio.just = input$ratio.justEQM),
+                     q2 = input$td2q_eqm,
+                     q3 = input$td3q_eqm,
+                     SP = input$spEQM,
+                     AM = input$amEQM,
+                    mm000 = input$mm000EQM,
+                     check.validity = FALSE)
+    
+    dt <- dt %>%
+      dplyr::rowwise() %>% 
+      dplyr::mutate(txScore = histoc::txscore(recipient.age = age
+                                              , recipient.dialysis = dialysis
+                                              , donor.age = donor_age
+                                              , mmHLA_A = mmA
+                                              , mmHLA_B = mmB
+                                              , mmHLA_DR = mmDR)$prob5y
+      ) %>% dplyr::ungroup()
+    
+    datatable(dt, options = list(pageLength = 5, dom = 'tip'))
+    
+  })
+  
+  ## compute multiple results for EQM algorithm
+  compute_resmEQM <- reactiveVal()
+  
+  observeEvent(input$GoEQM, {
+    
+    compute_resmEQM(NULL)
+    
+    withProgress(message = 'Calculation in progress, be patient!', {
+      for(i in 1:N){
+        # Long Running Task
+        Sys.sleep(1)
+        # Update progress
+        incProgress(1/N)
+      }
+      
+      if (input$dataInput == 1) {candidates<-histoc::candidates} else {candidates<-datasetCands()}
+      if (input$dataInput == 1) {abs.d<-histoc::cabs} else {abs.d<-datasetAbs()}
+      if (input$dataInput == 1) {donors<-histoc::donors} else {donors<-datasetDonors()}
+      
+      validate(
+        need(candidates != "", "Please select a candidates data set!")
+      )
+      
+      validate(
+        need(abs.d != "", "Please select candidates' HLA antibodies data set!")
+      )
+      
+      validate(
+        need(donors != "", "Please select donors' data set!")
+      )
+      
+      dt <- res_mult(df.donors = donors,
+                     df.candidates = candidates,
+                     df.abs = abs.d,
+                     algorithm = eqm,
+                     n = 0,
+                     check.validity = FALSE,
+                     iso = input$isoEQM,
+                     uj_matx(max.val = 100, ratio.util = input$ratio.utilEQM, ratio.just = input$ratio.justEQM),
+                     q2 = input$td2q_eqm,
+                     q3 = input$td3q_eqm,
+                     SP = input$spEQM,
+                     AM = input$amEQM,
+                     mm000 = input$mm000EQM
+                     )
+      
+      compute_resmEQM(dt)
+      
+    })
+  })
+  
+  output$resmEQM <- renderDataTable({
+    compute_resmEQM()
+  })
+  
+  # Downloadable csv of selected dataset ----
+  output$downloadDataEQM <- downloadHandler(
+    filename = function() {
+      paste("EQM_results", ".csv", sep = "")
+    },
+    content = function(file) {
+      write.csv2(compute_resmEQM(), file, row.names = FALSE, fileEncoding="latin1")
+    }
+  )
+  
+  ## Resume dataset results from EQM algorithm
+  output$resumeEQM <-
+    render_gt({
+      
+      validate(
+        need(compute_resmEQM() != "", "Results will be presented after the run!")
+      )
+      
+      tabsum<-compute_resmEQM() %>% 
+        dplyr::select(bg, age, dialysis, cPRA, HI, mmHLA, txScore) %>% 
+        dplyr::rename(`Blood group` = bg,
+                      `receptores' age (years)` = age,
+                      `time on dialysis (months)` = dialysis,
+                      `Hiper Immunized` = HI,
+                      `HLA miss matchs` = mmHLA,
+                      TxScore = txScore)
+      
+      gtsummary::tbl_summary(tabsum) %>% gtsummary::as_gt()
+    })
+  
   ######################################################################################
   ############ ligação entre inputs ############
   ############
   ############ donor's age
   sync.age <- synchronicity::boost.mutex()
-  
+
   observeEvent(input$dage,{
     synchronicity::lock(sync.age)
-    
+
     new <- input$dage
     updateSliderInput(session, "dageET", value = new)
-    
+
     synchronicity::unlock(sync.age)
   })
 
   observeEvent(input$dageET,{
     synchronicity::lock(sync.age)
-    
+
     new <- input$dageET
     updateSliderInput(session, "dage", value = new)
-    
+
     synchronicity::unlock(sync.age)
   })
 
   observeEvent(input$dage,{
     synchronicity::lock(sync.age)
-    
+
     new <- input$dage
     updateSliderInput(session, "dageLIMA", value = new)
-    
+
     synchronicity::unlock(sync.age)
   })
 
   observeEvent(input$dageLIMA,{
     synchronicity::lock(sync.age)
-    
+
     new <- input$dageLIMA
     updateSliderInput(session, "dage", value = new)
-    
+
     synchronicity::unlock(sync.age)
   })
 
   observeEvent(input$dage,{
     synchronicity::lock(sync.age)
-    
+
     new <- input$dage
     updateSliderInput(session, "dageUK", value = new)
-    
+
     synchronicity::unlock(sync.age)
   })
 
   observeEvent(input$dageUK,{
     synchronicity::lock(sync.age)
-    
+
     new <- input$dageUK
     updateSliderInput(session, "dage", value = new)
-    
+
+    synchronicity::unlock(sync.age)
+  })
+
+  observeEvent(input$dage,{
+    synchronicity::lock(sync.age)
+
+    new <- input$dage
+    updateSliderInput(session, "dageEQM", value = new)
+
+    synchronicity::unlock(sync.age)
+  })
+
+  observeEvent(input$dageEQM,{
+    synchronicity::lock(sync.age)
+
+    new <- input$dageEQM
+    updateSliderInput(session, "dage", value = new)
+
     synchronicity::unlock(sync.age)
   })
 
   ############ donor's ABO
   sync.abo = synchronicity::boost.mutex()
-  
+
   observeEvent(input$dabo,{
     synchronicity::lock(sync.abo)
-    
+
     new <- input$dabo
     updateRadioButtons(session, "daboET", selected = new)
-    
+
     synchronicity::unlock(sync.abo)
   })
 
   observeEvent(input$daboET,{
     synchronicity::lock(sync.abo)
-    
+
     new <- input$daboET
     updateRadioButtons(session, "dabo", selected = new)
-    
+
     synchronicity::unlock(sync.abo)
   })
 
   observeEvent(input$dabo,{
     synchronicity::lock(sync.abo)
-    
+
     new <- input$dabo
     updateRadioButtons(session, "daboLIMA", selected = new)
-    
+
     synchronicity::unlock(sync.abo)
   })
 
   observeEvent(input$daboLIMA,{
     synchronicity::lock(sync.abo)
-    
+
     new <- input$daboLIMA
     updateRadioButtons(session, "dabo", selected = new)
-    
+
     synchronicity::unlock(sync.abo)
   })
 
   observeEvent(input$dabo,{
     synchronicity::lock(sync.abo)
-    
+
     new <- input$dabo
     updateRadioButtons(session, "daboUK", selected = new)
-    
+
     synchronicity::unlock(sync.abo)
   })
 
   observeEvent(input$daboUK,{
     synchronicity::lock(sync.abo)
-    
+
     new <- input$daboUK
     updateRadioButtons(session, "dabo", selected = new)
-    
+
     synchronicity::unlock(sync.abo)
   })
-  
+
+  observeEvent(input$dabo,{
+    synchronicity::lock(sync.abo)
+
+    new <- input$dabo
+    updateRadioButtons(session, "daboEQM", selected = new)
+
+    synchronicity::unlock(sync.abo)
+  })
+
+  observeEvent(input$daboEQM,{
+    synchronicity::lock(sync.abo)
+
+    new <- input$daboEQM
+    updateRadioButtons(session, "dabo", selected = new)
+
+    synchronicity::unlock(sync.abo)
+  })
+
 ############ donor's typing HLA-A a1
   sync.hla.a1 = synchronicity::boost.mutex()
-  
+
 observeEvent(input$a1,{
   synchronicity::lock(sync.hla.a1)
-  
+
   new <- input$a1
   updateTextAreaInput(session, "a1ET", value  = new)
-  
+
   synchronicity::unlock(sync.hla.a1)
 })
 
 observeEvent(input$a1ET,{
   synchronicity::lock(sync.hla.a1)
-  
+
   new <- input$a1ET
   updateTextAreaInput(session, "a1", value  = new)
-  
+
   synchronicity::unlock(sync.hla.a1)
 })
 
 observeEvent(input$a1,{
   synchronicity::lock(sync.hla.a1)
-  
+
   new <- input$a1
   updateTextAreaInput(session, "a1LIMA", value  = new)
-  
+
   synchronicity::unlock(sync.hla.a1)
 })
 
 observeEvent(input$a1LIMA,{
   synchronicity::lock(sync.hla.a1)
-  
+
   new <- input$a1LIMA
   updateTextAreaInput(session, "a1", value  = new)
-  
+
   synchronicity::unlock(sync.hla.a1)
 })
 
 observeEvent(input$a1,{
   synchronicity::lock(sync.hla.a1)
-  
+
   new <- input$a1
   updateTextAreaInput(session, "a1UK", value  = new)
-  
+
   synchronicity::unlock(sync.hla.a1)
 })
 
 observeEvent(input$a1UK,{
   synchronicity::lock(sync.hla.a1)
-  
+
   new <- input$a1UK
   updateTextAreaInput(session, "a1", value  = new)
-  
+
   synchronicity::unlock(sync.hla.a1)
 })
 
+
+observeEvent(input$a1,{
+  synchronicity::lock(sync.hla.a1)
+
+  new <- input$a1
+  updateTextAreaInput(session, "a1EQM", value  = new)
+
+  synchronicity::unlock(sync.hla.a1)
+})
+
+observeEvent(input$a1EQM,{
+  synchronicity::lock(sync.hla.a1)
+
+  new <- input$a1EQM
+  updateTextAreaInput(session, "a1", value  = new)
+
+  synchronicity::unlock(sync.hla.a1)
+})
 ############ donor's typing HLA-A a2
 sync.hla.a2 = synchronicity::boost.mutex()
 
 observeEvent(input$a2,{
   synchronicity::lock(sync.hla.a2)
-  
+
   new <- input$a2
   updateTextAreaInput(session, "a2ET", value  = new)
-  
+
   synchronicity::unlock(sync.hla.a2)
 })
 
 observeEvent(input$a2ET,{
   synchronicity::lock(sync.hla.a2)
-  
+
   new <- input$a2ET
   updateTextAreaInput(session, "a2", value  = new)
-  
+
   synchronicity::unlock(sync.hla.a2)
 })
 
 observeEvent(input$a2,{
   synchronicity::lock(sync.hla.a2)
-  
+
   new <- input$a2
   updateTextAreaInput(session, "a2LIMA", value  = new)
-  
+
   synchronicity::unlock(sync.hla.a2)
 })
 
 observeEvent(input$a2LIMA,{
   synchronicity::lock(sync.hla.a2)
-  
+
   new <- input$a2LIMA
   updateTextAreaInput(session, "a2", value  = new)
-  
+
   synchronicity::unlock(sync.hla.a2)
 })
 
 observeEvent(input$a2,{
   synchronicity::lock(sync.hla.a2)
-  
+
   new <- input$a2
   updateTextAreaInput(session, "a2UK", value  = new)
-  
+
   synchronicity::unlock(sync.hla.a2)
 })
 
 observeEvent(input$a2UK,{
   synchronicity::lock(sync.hla.a2)
-  
+
   new <- input$a2UK
   updateTextAreaInput(session, "a2", value  = new)
-  
+
+  synchronicity::unlock(sync.hla.a2)
+})
+
+observeEvent(input$a2,{
+  synchronicity::lock(sync.hla.a2)
+
+  new <- input$a2
+  updateTextAreaInput(session, "a2EQM", value  = new)
+
+  synchronicity::unlock(sync.hla.a2)
+})
+
+observeEvent(input$a2EQM,{
+  synchronicity::lock(sync.hla.a2)
+
+  new <- input$a2EQM
+  updateTextAreaInput(session, "a2", value  = new)
+
   synchronicity::unlock(sync.hla.a2)
 })
 
@@ -1115,55 +1384,73 @@ sync.hla.b1 = synchronicity::boost.mutex()
 
 observeEvent(input$b1,{
   synchronicity::lock(sync.hla.b1)
-  
+
   new <- input$b1
   updateTextAreaInput(session, "b1ET", value  = new)
-  
+
   synchronicity::unlock(sync.hla.b1)
 })
 
 observeEvent(input$b1ET,{
   synchronicity::lock(sync.hla.b1)
-  
+
   new <- input$b1ET
   updateTextAreaInput(session, "b1", value  = new)
-  
+
   synchronicity::unlock(sync.hla.b1)
 })
 
 observeEvent(input$b1,{
   synchronicity::lock(sync.hla.b1)
-  
+
   new <- input$b1
   updateTextAreaInput(session, "b1LIMA", value  = new)
-  
+
   synchronicity::unlock(sync.hla.b1)
 })
 
 observeEvent(input$b1LIMA,{
   synchronicity::lock(sync.hla.b1)
-  
+
   new <- input$b1LIMA
   updateTextAreaInput(session, "b1", value  = new)
-  
+
   synchronicity::unlock(sync.hla.b1)
 })
 
 observeEvent(input$b1,{
   synchronicity::lock(sync.hla.b1)
-  
+
   new <- input$b1
   updateTextAreaInput(session, "b1UK", value  = new)
-  
+
   synchronicity::unlock(sync.hla.b1)
 })
 
 observeEvent(input$b1UK,{
   synchronicity::lock(sync.hla.b1)
-  
+
   new <- input$b1UK
   updateTextAreaInput(session, "b1", value  = new)
-  
+
+  synchronicity::unlock(sync.hla.b1)
+})
+
+observeEvent(input$b1,{
+  synchronicity::lock(sync.hla.b1)
+
+  new <- input$b1
+  updateTextAreaInput(session, "b1EQM", value  = new)
+
+  synchronicity::unlock(sync.hla.b1)
+})
+
+observeEvent(input$b1EQM,{
+  synchronicity::lock(sync.hla.b1)
+
+  new <- input$b1EQM
+  updateTextAreaInput(session, "b1", value  = new)
+
   synchronicity::unlock(sync.hla.b1)
 })
 
@@ -1172,55 +1459,74 @@ sync.hla.b2 = synchronicity::boost.mutex()
 
 observeEvent(input$b2,{
   synchronicity::lock(sync.hla.b2)
-  
+
   new <- input$b2
   updateTextAreaInput(session, "b2ET", value  = new)
-  
+
   synchronicity::unlock(sync.hla.b2)
 })
 
 observeEvent(input$b2ET,{
   synchronicity::lock(sync.hla.b2)
-  
+
   new <- input$b2ET
   updateTextAreaInput(session, "b2", value  = new)
-  
+
   synchronicity::unlock(sync.hla.b2)
 })
 
 observeEvent(input$b2,{
   synchronicity::lock(sync.hla.b2)
-  
+
   new <- input$b2
   updateTextAreaInput(session, "b2LIMA", value  = new)
-  
+
   synchronicity::unlock(sync.hla.b2)
 })
 
 observeEvent(input$b2LIMA,{
   synchronicity::lock(sync.hla.b2)
-  
+
   new <- input$b2LIMA
   updateTextAreaInput(session, "b2", value  = new)
-  
+
   synchronicity::unlock(sync.hla.b2)
 })
 
 observeEvent(input$b2,{
   synchronicity::lock(sync.hla.b2)
-  
+
   new <- input$b2
   updateTextAreaInput(session, "b2UK", value  = new)
-  
+
   synchronicity::unlock(sync.hla.b2)
 })
 
 observeEvent(input$b2UK,{
   synchronicity::lock(sync.hla.b2)
-  
+
   new <- input$b2UK
   updateTextAreaInput(session, "b2", value  = new)
-  
+
+  synchronicity::unlock(sync.hla.b2)
+})
+
+
+observeEvent(input$b2,{
+  synchronicity::lock(sync.hla.b2)
+
+  new <- input$b2
+  updateTextAreaInput(session, "b2EQM", value  = new)
+
+  synchronicity::unlock(sync.hla.b2)
+})
+
+observeEvent(input$b2EQM,{
+  synchronicity::lock(sync.hla.b2)
+
+  new <- input$b2EQM
+  updateTextAreaInput(session, "b2", value  = new)
+
   synchronicity::unlock(sync.hla.b2)
 })
 
@@ -1229,55 +1535,73 @@ sync.hla.dr1 = synchronicity::boost.mutex()
 
 observeEvent(input$dr1,{
   synchronicity::lock(sync.hla.dr1)
-  
+
   new <- input$dr1
   updateTextAreaInput(session, "dr1ET", value  = new)
-  
+
   synchronicity::unlock(sync.hla.dr1)
 })
 
 observeEvent(input$dr1ET,{
   synchronicity::lock(sync.hla.dr1)
-  
+
   new <- input$dr1ET
   updateTextAreaInput(session, "dr1", value  = new)
-  
+
   synchronicity::unlock(sync.hla.dr1)
 })
 
 observeEvent(input$dr1,{
   synchronicity::lock(sync.hla.dr1)
-  
+
   new <- input$dr1
   updateTextAreaInput(session, "dr1LIMA", value  = new)
-  
+
   synchronicity::unlock(sync.hla.dr1)
 })
 
 observeEvent(input$dr1LIMA,{
   synchronicity::lock(sync.hla.dr1)
-  
+
   new <- input$dr1LIMA
   updateTextAreaInput(session, "dr1", value  = new)
-  
+
   synchronicity::unlock(sync.hla.dr1)
 })
 
 observeEvent(input$dr1,{
   synchronicity::lock(sync.hla.dr1)
-  
+
   new <- input$dr1
   updateTextAreaInput(session, "dr1UK", value  = new)
-  
+
   synchronicity::unlock(sync.hla.dr1)
 })
 
 observeEvent(input$dr1UK,{
   synchronicity::lock(sync.hla.dr1)
-  
+
   new <- input$dr1UK
   updateTextAreaInput(session, "dr1", value  = new)
-  
+
+  synchronicity::unlock(sync.hla.dr1)
+})
+
+observeEvent(input$dr1,{
+  synchronicity::lock(sync.hla.dr1)
+
+  new <- input$dr1
+  updateTextAreaInput(session, "dr1EQM", value  = new)
+
+  synchronicity::unlock(sync.hla.dr1)
+})
+
+observeEvent(input$dr1EQM,{
+  synchronicity::lock(sync.hla.dr1)
+
+  new <- input$dr1EQM
+  updateTextAreaInput(session, "dr1", value  = new)
+
   synchronicity::unlock(sync.hla.dr1)
 })
 
@@ -1286,57 +1610,118 @@ sync.hla.dr2 = synchronicity::boost.mutex()
 
 observeEvent(input$dr2,{
   synchronicity::lock(sync.hla.dr2)
-  
+
   new <- input$dr2
   updateTextAreaInput(session, "dr2ET", value  = new)
-  
+
   synchronicity::unlock(sync.hla.dr2)
 })
 
 observeEvent(input$dr2ET,{
   synchronicity::lock(sync.hla.dr2)
-  
+
   new <- input$dr2ET
   updateTextAreaInput(session, "dr2", value  = new)
-  
+
   synchronicity::unlock(sync.hla.dr2)
 })
 
 observeEvent(input$dr2,{
   synchronicity::lock(sync.hla.dr2)
-  
+
   new <- input$dr2
   updateTextAreaInput(session, "dr2LIMA", value  = new)
-  
+
   synchronicity::unlock(sync.hla.dr2)
 })
 
 observeEvent(input$dr2LIMA,{
   synchronicity::lock(sync.hla.dr2)
-  
+
   new <- input$dr2LIMA
   updateTextAreaInput(session, "dr2", value  = new)
-  
+
   synchronicity::unlock(sync.hla.dr2)
 })
 
 observeEvent(input$dr2,{
   synchronicity::lock(sync.hla.dr2)
-  
+
   new <- input$dr2
   updateTextAreaInput(session, "dr2UK", value  = new)
-  
+
   synchronicity::unlock(sync.hla.dr2)
 })
 
 observeEvent(input$dr2UK,{
   synchronicity::lock(sync.hla.dr2)
-  
+
   new <- input$dr2UK
   updateTextAreaInput(session, "dr2", value  = new)
-  
+
   synchronicity::unlock(sync.hla.dr2)
+})
+
+
+observeEvent(input$dr2,{
+  synchronicity::lock(sync.hla.dr2)
+
+  new <- input$dr2
+  updateTextAreaInput(session, "dr2EQM", value  = new)
+
+  synchronicity::unlock(sync.hla.dr2)
+})
+
+observeEvent(input$dr2EQM,{
+  synchronicity::lock(sync.hla.dr2)
+
+  new <- input$dr2EQM
+  updateTextAreaInput(session, "dr2", value  = new)
+
+  synchronicity::unlock(sync.hla.dr2)
+})
+
+############# time on dialisys 2nd quartile
+sync.td.2q <- synchronicity::boost.mutex()
+
+observeEvent(input$td2q,{
+  synchronicity::lock(sync.td.2q)
+
+  new <- input$td2q
+  updateTextAreaInput(session, "td2q_eqm", value  = new)
+
+  synchronicity::unlock(sync.td.2q)
+})
+
+observeEvent(input$td2q_eqm,{
+  synchronicity::lock(sync.td.2q)
+
+  new <- input$td2q_eqm
+  updateTextAreaInput(session, "td2q", value  = new)
+
+  synchronicity::unlock(sync.td.2q)
+})
+
+
+############# time on dialisys 3rd quartile
+sync.td.3q <- synchronicity::boost.mutex()
+
+observeEvent(input$td3q,{
+  synchronicity::lock(sync.td.3q)
+
+  new <- input$td3q
+  updateTextAreaInput(session, "td3q_eqm", value  = new)
+
+  synchronicity::unlock(sync.td.3q)
+})
+
+observeEvent(input$td3q_eqm,{
+  synchronicity::lock(sync.td.3q)
+
+  new <- input$td3q_eqm
+  updateTextAreaInput(session, "td3q", value  = new)
+
+  synchronicity::unlock(sync.td.3q)
 })
   
 }
-
